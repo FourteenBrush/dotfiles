@@ -1,25 +1,28 @@
-vim.g.loaded_netrw = true
-vim.g.loaded_netrwPlugin = true 
-vim.g.mapleader = ' '
+vim.g.loaded_netrw       = true
+vim.g.loaded_netrwPlugin = true
+vim.g.mapleader          = ' '
 
-local opt       = vim.opt
+local opt                = vim.opt
 
-opt.syntax      = 'enable'
-opt.mouse       = 'a'
-opt.number      = true
-opt.smarttab    = true
-opt.expandtab   = true
-opt.smartcase   = true
-opt.tabstop     = 4
-opt.shiftwidth  = 4
-opt.splitbelow  = true
-opt.splitright  = true
+opt.syntax               = 'enable'
+opt.mouse                = 'a'
+opt.number               = true
+opt.smarttab             = true
+opt.expandtab            = true
+opt.smartcase            = true
+opt.tabstop              = 4
+opt.shiftwidth           = 4
+opt.splitbelow           = true
+opt.splitright           = true
+opt.showmode             = false
+opt.foldmethod           = 'marker'
 
 --------------------------------------------------
 -- Plugins
 --------------------------------------------------
 
-local lazypath  = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
+local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
+--- @diagnostic disable-next-line: undefined-field
 if not vim.loop.fs_stat(lazypath) then
   vim.fn.system {
     'git',
@@ -39,7 +42,7 @@ local plugins = {
   { 'williamboman/mason.nvim' },
   { 'williamboman/mason-lspconfig.nvim' },
   { 'sainnhe/gruvbox-material' },
-  { 'hrsh7th/nvim-cmp',                 event = { 'InsertEnter', 'CmdlineEnter' } }, -- autocompletion
+  { 'hrsh7th/nvim-cmp', event = { 'InsertEnter', 'CmdlineEnter' } }, -- autocompletion
   { 'hrsh7th/cmp-nvim-lsp' },
   { 'windwp/nvim-autopairs' },
   { 'nvim-tree/nvim-tree.lua' },
@@ -48,6 +51,10 @@ local plugins = {
     branch = '0.1.x',
     dependencies = { 'nvim-lua/plenary.nvim' },
   },
+  {
+    'nvim-lualine/lualine.nvim',
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+  }
 }
 
 require('lazy').setup(plugins)
@@ -58,8 +65,12 @@ require('telescope').setup {
   },
 }
 
+--- @diagnostic disable-next-line: missing-fields
 require('nvim-treesitter.configs').setup {
-  ensure_installed = { 'odin', 'lua', 'javascript', 'c', 'cpp', 'vimdoc', 'java', 'comment', 'query', 'jsdoc', 'angular' },
+  ensure_installed = {
+    'odin', 'lua', 'javascript', 'c', 'cpp', 'vimdoc', 'java', 'comment',
+    'query', 'jsdoc', 'angular', 'rust',
+  },
   highlight = { enable = true },
   indent = { enable = true },
   incremental_selection = {
@@ -92,6 +103,9 @@ cmp.setup {
   { name = 'buffer' },
 }
 
+local npairs = require('nvim-autopairs')
+npairs.setup { check_ts = true }
+
 -- automatically add parenthesis after tabcompletion
 local cmp_autopairs = require('nvim-autopairs.completion.cmp')
 cmp.event:on(
@@ -99,20 +113,46 @@ cmp.event:on(
   cmp_autopairs.on_confirm_done()
 )
 
-local npairs = require('nvim-autopairs')
-npairs.setup { check_ts = true }
-
 require('nvim-tree').setup {
+  view = {
+    preserve_window_proportions = true,
+  },
   filters = {
     dotfiles = false,
   },
 }
 
+-- https://github.com/nvim-tree/nvim-tree.lua/wiki/Auto-Close#ppwwyyxx
 vim.api.nvim_create_autocmd('QuitPre', {
-  callback = function()
-    vim.cmd 'NvimTreeClose'
+  callback = function ()
+    local invalid_wins = {}
+    local wins = vim.api.nvim_list_wins()
+
+    for _, w in ipairs(wins) do
+      local bufname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(w))
+      if bufname:match('NvimTree_') ~= nil then
+        table.insert(invalid_wins, w)
+      end
+    end
+
+    if #invalid_wins == #wins - 1 then
+      -- should quit, so we close all invalid windows
+      for _, w in ipairs(invalid_wins) do
+        vim.api.nvim_win_close(w, true)
+      end
+    end
   end,
 })
+
+require('lualine').setup {
+  options = {
+    theme = 'gruvbox-material',
+    component_separators = { left = '', right = '' },
+    section_separators = { left = '', right = '' },
+    extensions = { 'lazy', 'mason', 'nvim-tree' },
+  },
+}
+
 
 --------------------------------------------------
 -- Theme
@@ -130,34 +170,41 @@ vim.g.gruvbox_material_foreground                = 'original'
 -- whatever '234' means
 vim.g.gruvbox_material_colors_override           = { fg0 = { '#89b482', '234' } }
 vim.cmd 'colorscheme gruvbox-material'
+vim.cmd [[ hi NvimTreeNormal guibg='NONE' ctermbg='NONE' ]]
 
 --------------------------------------------------
 -- Keybindings
 --------------------------------------------------
 
+local telescope = require("telescope.builtin")
 local keymap = vim.keymap
-keymap.set('n', '<Leader>ff', '<cmd>:Telescope find_files hidden=true<cr>')
-keymap.set('n', '<Leader>fi', '<cmd>:Telescope find_files hidden=true theme=ivy<cr>')
-keymap.set('n', '<Leader>fv', '<cmd>:Telescope find_files hidden=true layout_strategy=vertical<cr>')
-keymap.set('n', '<Leader>fc', '<cmd>:Telescope current_buffer_fuzzy_find<cr>')
-keymap.set('n', '<Leader>fg', '<cmd>:Telescope live_grep<cr>')
-keymap.set('n', '<Leader>gi', '<cmd>:Telescope live_grep theme=ivy<cr>')
-keymap.set('n', '<Leader>gv', '<cmd>:Telescope live_grep layout_strategy=vertical<cr>')
-keymap.set('n', '<Leader>fb', '<cmd>:Telescope buffers<cr>')
-keymap.set('n', '<Leader>fh', '<cmd>:Telescope help_tags<cr>')
-keymap.set('n', '<Leader>a', '<cmd>:Telescope diagnostics<cr>')
-keymap.set('n', '<Leader>d', '<cmd>:Telescope lsp_document_symbols<cr>')
-keymap.set('n', '<Leader>gc', '<cmd>:Telescope git_commits<cr>')
-keymap.set('n', '<Leader>gs', '<cmd>:Telescope git_status<cr>')
-keymap.set('n', '<Leader>gb', '<cmd>:Telescope git_branches<cr>')
+
+keymap.set('n', '<leader>ff', '<cmd>:Telescope find_files hidden=true<cr>')
+keymap.set('n', '<leader>fi', '<cmd>:Telescope find_files hidden=true theme=ivy<cr>')
+keymap.set('n', '<leader>fv', '<cmd>:Telescope find_files hidden=true layout_strategy=vertical<cr>')
+keymap.set('n', '<leader>fc', '<cmd>:Telescope current_buffer_fuzzy_find<cr>')
+keymap.set('n', '<leader>fg', telescope.live_grep)
+keymap.set('n', '<leader>gi', '<cmd>:Telescope live_grep theme=ivy<cr>')
+keymap.set('n', '<leader>gv', '<cmd>:Telescope live_grep layout_strategy=vertical<cr>')
+keymap.set('n', '<leader>fb', telescope.buffers)
+keymap.set('n', '<leader>fh', telescope.help_tags)
+keymap.set('n', '<leader>a', telescope.diagnostics)
+keymap.set('n', '<leader>d', telescope.lsp_document_symbols)
+keymap.set('n', '<leader>gc', telescope.git_commits)
+keymap.set('n', '<leader>gs', telescope.git_status)
+keymap.set('n', '<leader>gb', telescope.git_branches)
 
 keymap.set('n', '<C-x>', '<cmd>:NvimTreeToggle<cr>')
 
-keymap.set('n', '<Leader>st', '<cmd>:sp|term<cr>')
-keymap.set('n', '<Leader>vt', '<cmd>:vsp|term<cr>')
-keymap.set('n', '<Leader>t', '<cmd>:term<cr>')
+keymap.set('n', '<leader>st', '<cmd>:sp|term<cr>')
+keymap.set('n', '<leader>vt', '<cmd>:vsp|term<cr>')
+keymap.set('n', '<leader>t', '<cmd>:term<cr>')
 
-keymap.set('n', '<Leader>e', vim.diagnostic.open_float)
+keymap.set('n', '<leader>e', vim.diagnostic.open_float)
+
+keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', {
+  desc = 'Exit terminal mode',
+})
 
 --------------------------------------------------
 -- Autocommands
@@ -167,8 +214,11 @@ local lspgroup = vim.api.nvim_create_augroup('UserLspConfig', {})
 
 vim.api.nvim_create_autocmd('LspAttach', {
   group = lspgroup,
-  callback = function(event)
-    local opts = { buffer = event.buf }
+  callback = function(args)
+    local opts = { buffer = args.buf }
+
+    vim.lsp.inlay_hint.enable(args.buf, true)
+
     -- buffer local mappings
     keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
     keymap.set('n', 'gD', vim.lsp.buf.declaration, opts)
@@ -177,7 +227,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
     keymap.set('n', '<C-;>', vim.lsp.buf.code_action, opts)
     keymap.set('n', 'gr', vim.lsp.buf.rename, opts)
     keymap.set('n', 'gu', vim.lsp.buf.references, opts)
-    keymap.set('n', '<Leader>fd', function()
+    keymap.set('n', '<leader>fd', function()
       vim.lsp.buf.format { async = true }
       vim.print('Formatted document')
     end, opts)
@@ -200,12 +250,18 @@ vim.api.nvim_create_autocmd('FileType', {
 
 require('mason').setup()
 require('mason-lspconfig').setup {
-  -- automatic_installation = true,
+  automatic_installation = true,
 }
 
 local lspconfig = require('lspconfig')
 lspconfig.ols.setup {}
-lspconfig.tsserver.setup {}
+lspconfig.tsserver.setup {
+  init_options = {
+    preferences = {
+      includeInlayParameterNameHints = 'all',
+    },
+  },
+}
 lspconfig.lua_ls.setup {
   settings = {
     Lua = {
