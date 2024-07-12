@@ -16,6 +16,7 @@ opt.splitbelow           = true
 opt.splitright           = true
 opt.showmode             = false
 opt.foldmethod           = 'marker'
+opt.linebreak            = true
 
 --------------------------------------------------
 -- Plugins
@@ -73,6 +74,11 @@ require('nvim-treesitter.configs').setup {
   },
   highlight = { enable = true },
   indent = { enable = true },
+  context_commentstring = {
+    enable = true,
+    autocmd = false,
+  },
+  autotag = { enable = true },
   incremental_selection = {
     enable = true,
     keymaps = {
@@ -170,7 +176,19 @@ vim.g.gruvbox_material_foreground                = 'original'
 -- whatever '234' means
 vim.g.gruvbox_material_colors_override           = { fg0 = { '#89b482', '234' } }
 vim.cmd 'colorscheme gruvbox-material'
-vim.cmd [[ hi NvimTreeNormal guibg='NONE' ctermbg='NONE' ]]
+
+local nvim_tree_hi = {
+  'NvimTreeNormal',
+  'NvimTreeNormalNC',
+  'NvimTreeWinSeparator',
+  'NvimTreeEndOfBuffer',
+}
+
+for _, highlight in ipairs(nvim_tree_hi) do
+  vim.cmd(':hi ' .. highlight .. ' guibg=none ctermbg=none')
+end
+
+vim.cmd [[ :hi NvimTreeFolderIcon guifg=#7094b4 ]]
 
 --------------------------------------------------
 -- Keybindings
@@ -238,9 +256,9 @@ vim.api.nvim_create_autocmd('FileType', {
   group = lspgroup,
   pattern = 'html,xhtml,javascript,javascriptreact,typescript,typescriptreact,css,scss,lua',
   callback = function()
-    vim.api.nvim_set_option_value('tabstop', 2, {})
-    vim.api.nvim_set_option_value('shiftwidth', 2, {})
-    vim.api.nvim_set_option_value('softtabstop', 2, {})
+    vim.api.nvim_set_option_value('tabstop', 2, { scope = 'local' })
+    vim.api.nvim_set_option_value('shiftwidth', 2, { scope = 'local' })
+    vim.api.nvim_set_option_value('softtabstop', 2, { scope = 'local' })
   end,
 })
 
@@ -270,6 +288,9 @@ lspconfig.lua_ls.setup {
       workspace = {
         -- make the server aware of neovim runtime files
         library = vim.api.nvim_get_runtime_file('', true),
+      },
+      diagnostics = {
+        globals = { 'vim' },
       },
     },
   },
