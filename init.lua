@@ -1,10 +1,12 @@
 vim.g.loaded_netrw       = true
 vim.g.loaded_netrwPlugin = true
 vim.g.mapleader          = ' '
+vim.g.maplocalleader     = ' '
 
 local opt                = vim.opt
 
 opt.syntax               = 'enable'
+opt.background           = 'dark'
 opt.mouse                = 'a'
 opt.number               = true
 opt.smarttab             = true
@@ -17,6 +19,9 @@ opt.splitright           = true
 opt.showmode             = false
 opt.foldmethod           = 'marker'
 opt.linebreak            = true
+-- opt.inccommand           = 'split'
+-- number of lines to keep above and below cursor when f.e. jumping
+opt.scrolloff            = 2
 
 --------------------------------------------------
 -- Plugins
@@ -38,12 +43,15 @@ end
 opt.rtp:prepend(lazypath)
 
 local plugins = {
-  { 'nvim-treesitter/nvim-treesitter',  build = ':TSUpdate', event = { 'BufReadPre', 'BufNewFile' } },
+  { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate', event = { 'BufReadPre', 'BufNewFile' } },
   { 'neovim/nvim-lspconfig' },
   { 'williamboman/mason.nvim' },
   { 'williamboman/mason-lspconfig.nvim' },
-  { 'sainnhe/gruvbox-material' },
-  { 'hrsh7th/nvim-cmp', event = { 'InsertEnter', 'CmdlineEnter' } }, -- autocompletion
+  -- { 'sainnhe/gruvbox-material' },
+  -- { 'sainnhe/everforest', priority = 1000 },
+  { 'Shatur/neovim-ayu' },
+  { 'hrsh7th/nvim-cmp', event = { 'InsertEnter', 'CmdlineEnter', 'BufReadPost' } }, -- autocompletion
+  { 'onsails/lspkind.nvim' }, -- fancy icons for nvim-cmp
   { 'hrsh7th/cmp-nvim-lsp' },
   { 'windwp/nvim-autopairs' },
   { 'nvim-tree/nvim-tree.lua' },
@@ -55,14 +63,15 @@ local plugins = {
   {
     'nvim-lualine/lualine.nvim',
     dependencies = { 'nvim-tree/nvim-web-devicons' },
-  }
+  },
+  { 'akinsho/toggleterm.nvim', config = true },
 }
 
 require('lazy').setup(plugins)
 
 require('telescope').setup {
   defaults = {
-    file_ignore_patterns = { 'node_modules', '.git' },
+    file_ignore_patterns = { 'node_modules', '.git/' },
   },
 }
 
@@ -91,7 +100,17 @@ require('nvim-treesitter.configs').setup {
 }
 
 local cmp = require('cmp')
+local lspkind = require('lspkind')
+
 cmp.setup {
+  --[[
+  window = {
+    completion = cmp.config.window.bordered(),
+  },
+  --]]
+  formatting = {
+    format = lspkind.cmp_format(),
+  },
   sources = cmp.config.sources {
     { name = 'nvim_lsp' },
   },
@@ -120,12 +139,8 @@ cmp.event:on(
 )
 
 require('nvim-tree').setup {
-  view = {
-    preserve_window_proportions = true,
-  },
-  filters = {
-    dotfiles = false,
-  },
+  view = { preserve_window_proportions = true },
+  filters = { dotfiles = false },
 }
 
 -- https://github.com/nvim-tree/nvim-tree.lua/wiki/Auto-Close#ppwwyyxx
@@ -152,50 +167,78 @@ vim.api.nvim_create_autocmd('QuitPre', {
 
 require('lualine').setup {
   options = {
-    theme = 'gruvbox-material',
+    theme = 'ayu',
     component_separators = { left = '', right = '' },
     section_separators = { left = '', right = '' },
     extensions = { 'lazy', 'mason', 'nvim-tree' },
   },
 }
 
+require('toggleterm').setup {
+  -- there's an mapping timeout issue with this approach
+  -- open_mapping = '<leader>tt',
+  size = function (term)
+    if term.direction == 'horizontal' then
+      return 15
+    elseif term.direction == 'vertical' then
+      return vim.o.columns * 0.4
+    end
+  end,
+}
 
 --------------------------------------------------
 -- Theme
 --------------------------------------------------
 
-opt.background = 'dark'
-if vim.fn.has('termguicolors') then
-  opt.termguicolors = true
-end
+vim.api.nvim_create_autocmd('ColorScheme', {
+  group = vim.api.nvim_create_augroup('custom_highlights_gruvboxmaterial', {}),
+  pattern = 'gruvbox-material',
+  callback = function ()
+    local config = vim.fn['gruvbox_material#get_configuration']()
+    local palette = vim.fn['gruvbox_material#get_palette'](
+      config.background, config.foreground, config.colors_override
+    )
+    local set_hl = vim.fn['gruvbox_material#highlight']
 
+    set_hl('NvimTreeFolderIcon', palette.bg_visual_yellow, palette.bg_visual_yellow)
+
+    vim.api.nvim_set_hl(0, 'NvimTreeFolderIcon', { fg = '#7094b4', ctermfg = 'none', force = true, default = true })
+    vim.notify('ColorScheme callback')
+  end
+})
+
+--[[
 vim.g.gruvbox_material_better_performance        = true
 vim.g.gruvbox_material_disable_italic_comment    = true
 vim.g.gruvbox_material_diagnostic_text_highlight = true
 vim.g.gruvbox_material_foreground                = 'original'
+vim.g.gruvbox_material_transparent_background    = 1
 -- whatever '234' means
 vim.g.gruvbox_material_colors_override           = { fg0 = { '#89b482', '234' } }
-vim.cmd 'colorscheme gruvbox-material'
+]]--
 
-local nvim_tree_hi = {
-  'NvimTreeNormal',
-  'NvimTreeNormalNC',
-  'NvimTreeWinSeparator',
-  'NvimTreeEndOfBuffer',
-}
-
-for _, highlight in ipairs(nvim_tree_hi) do
-  vim.cmd(':hi ' .. highlight .. ' guibg=none ctermbg=none')
-end
-
-vim.cmd [[ :hi NvimTreeFolderIcon guifg=#7094b4 ]]
+vim.cmd.colorscheme('ayu-dark')
+-- vim.cmd [[ :hi NvimTreeFolderIcon guifg=#7094b4 ]]
 
 --------------------------------------------------
 -- Keybindings
 --------------------------------------------------
 
-local telescope = require("telescope.builtin")
 local keymap = vim.keymap
+
+-- remap splits navigation to just CTRL + hjkl
+keymap.set('n', '<C-h>', '<C-w>h')
+keymap.set('n', '<C-j>', '<C-w>j')
+keymap.set('n', '<C-k>', '<C-w>k')
+keymap.set('n', '<C-l>', '<C-w>l')
+
+-- make adjusting split sizes a bit more friendly
+keymap.set('n', '<C-Left>', '<cmd>:vert res +3<cr>')
+keymap.set('n', '<C-Right>', '<cmd>:vert res -3<cr>')
+keymap.set('n', '<C-Up>', '<cmd>:res +3<cr>')
+keymap.set('n', '<C-Down>', '<cmd>:res +3<cr>')
+
+local telescope = require('telescope.builtin')
 
 keymap.set('n', '<leader>ff', '<cmd>:Telescope find_files hidden=true<cr>')
 keymap.set('n', '<leader>fi', '<cmd>:Telescope find_files hidden=true theme=ivy<cr>')
@@ -214,9 +257,11 @@ keymap.set('n', '<leader>gb', telescope.git_branches)
 
 keymap.set('n', '<C-x>', '<cmd>:NvimTreeToggle<cr>')
 
-keymap.set('n', '<leader>st', '<cmd>:sp|term<cr>')
-keymap.set('n', '<leader>vt', '<cmd>:vsp|term<cr>')
-keymap.set('n', '<leader>t', '<cmd>:term<cr>')
+-- tt :vnew term://fish
+
+keymap.set('n', '<leader>tt', '<cmd>exe v:count . "ToggleTerm"<cr>')
+keymap.set('n', '<leader>tv', '<cmd>:ToggleTerm direction=vertical<cr>')
+keymap.set('n', '<leader>tf', '<cmd>exe v:count . "ToggleTerm direction=float"<cr>')
 
 keymap.set('n', '<leader>e', vim.diagnostic.open_float)
 
@@ -256,9 +301,10 @@ vim.api.nvim_create_autocmd('FileType', {
   group = lspgroup,
   pattern = 'html,xhtml,javascript,javascriptreact,typescript,typescriptreact,css,scss,lua',
   callback = function()
-    vim.api.nvim_set_option_value('tabstop', 2, { scope = 'local' })
-    vim.api.nvim_set_option_value('shiftwidth', 2, { scope = 'local' })
-    vim.api.nvim_set_option_value('softtabstop', 2, { scope = 'local' })
+    local opts = { scope = 'local' }
+    vim.api.nvim_set_option_value('tabstop', 2, opts)
+    vim.api.nvim_set_option_value('shiftwidth', 2, opts)
+    vim.api.nvim_set_option_value('softtabstop', 2, opts)
   end,
 })
 
@@ -273,6 +319,7 @@ require('mason-lspconfig').setup {
 
 local lspconfig = require('lspconfig')
 lspconfig.ols.setup {}
+lspconfig.pyright.setup {}
 lspconfig.tsserver.setup {
   init_options = {
     preferences = {
@@ -295,30 +342,3 @@ lspconfig.lua_ls.setup {
     },
   },
 }
-
---[[
-lspconfig.marksman.setup{}
-
-vim.lsp.handlers['textDocument/publishDiagnostics'] = filter_tsserver_diagnostics
-
--- suppress some tsserver diagnostics which cannot be fixed with an .eslintrc
-local function filter_tsserver_diagnostics(_, result, ctx, config)
-    if result.diagnostics == nil then
-        return
-    end
-    -- ignore some tsserver diagnostics
-    local idx = 1
-    while idx <= #result.diagnostics do
-        local entry = result.diagnostics[idx]
-        -- codes: https://github.com/microsoft/TypeScript/blob/main/src/compiler/diagnosticMessages.json
-        if entry.code == 80001 then
-            -- {message = "File is a CommonJS module; it may be converted to an ES module."}
-            table.remove(result.diagnostics, idx)
-        else
-            idx = idx + 1
-        end
-    end
-
-    vim.lsp.diagnostic.on_publish_diagnostics(_, result, ctx, config)
-end
-]]
