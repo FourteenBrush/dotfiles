@@ -65,12 +65,35 @@ local plugins = {
     dependencies = { 'nvim-tree/nvim-web-devicons' },
   },
   { 'akinsho/toggleterm.nvim', config = true },
+  { 'https://github.com/junegunn/vim-easy-align.git' },
 }
 
 require('lazy').setup(plugins)
 
+local previewers= require('telescope.previewers')
+local Job = require('plenary.job')
+
+local new_maker = function (filepath, bufnr, opts)
+  filepath = vim.fn.expand(filepath)
+  Job:new {
+    command = 'file',
+    args = { '--mime-type', '-b', filepath },
+    on_exit = function (j)
+      local mime_type = vim.split(j:result()[1], '/')[1]
+      if mime_type == 'text' then
+        previewers.buffer_previewer_maker(filepath, bufnr, opts)
+      else
+        vim.schedule(function ()
+          vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'BINARY' })
+        end)
+      end
+    end
+  }:sync()
+end
+
 require('telescope').setup {
   defaults = {
+    buffer_previewer_maker = new_maker,
     file_ignore_patterns = { 'node_modules', '.git/' },
   },
 }
@@ -79,7 +102,7 @@ require('telescope').setup {
 require('nvim-treesitter.configs').setup {
   ensure_installed = {
     'odin', 'lua', 'javascript', 'c', 'cpp', 'vimdoc', 'java', 'comment',
-    'query', 'jsdoc', 'angular', 'rust',
+    'query', 'jsdoc', 'angular', 'rust', -- 'clangd',
   },
   highlight = { enable = true },
   indent = { enable = true },
@@ -186,36 +209,11 @@ require('toggleterm').setup {
   end,
 }
 
+
+
 --------------------------------------------------
 -- Theme
 --------------------------------------------------
-
-vim.api.nvim_create_autocmd('ColorScheme', {
-  group = vim.api.nvim_create_augroup('custom_highlights_gruvboxmaterial', {}),
-  pattern = 'gruvbox-material',
-  callback = function ()
-    local config = vim.fn['gruvbox_material#get_configuration']()
-    local palette = vim.fn['gruvbox_material#get_palette'](
-      config.background, config.foreground, config.colors_override
-    )
-    local set_hl = vim.fn['gruvbox_material#highlight']
-
-    set_hl('NvimTreeFolderIcon', palette.bg_visual_yellow, palette.bg_visual_yellow)
-
-    vim.api.nvim_set_hl(0, 'NvimTreeFolderIcon', { fg = '#7094b4', ctermfg = 'none', force = true, default = true })
-    vim.notify('ColorScheme callback')
-  end
-})
-
---[[
-vim.g.gruvbox_material_better_performance        = true
-vim.g.gruvbox_material_disable_italic_comment    = true
-vim.g.gruvbox_material_diagnostic_text_highlight = true
-vim.g.gruvbox_material_foreground                = 'original'
-vim.g.gruvbox_material_transparent_background    = 1
--- whatever '234' means
-vim.g.gruvbox_material_colors_override           = { fg0 = { '#89b482', '234' } }
-]]--
 
 vim.cmd.colorscheme('ayu-dark')
 -- vim.cmd [[ :hi NvimTreeFolderIcon guifg=#7094b4 ]]
@@ -269,6 +267,9 @@ keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', {
   desc = 'Exit terminal mode',
 })
 
+keymap.set('x', 'ga', '<Plug>(EasyAlign)', { silent = true })
+keymap.set('n', 'ga', '<Plug>(EasyAlign)', { silent = true })
+
 --------------------------------------------------
 -- Autocommands
 --------------------------------------------------
@@ -312,7 +313,13 @@ vim.api.nvim_create_autocmd('FileType', {
 -- Lsp related
 --------------------------------------------------
 
-require('mason').setup()
+require('mason').setup {
+  opts = {
+    ensure_installed = {
+      'clangd',
+    },
+  },
+}
 require('mason-lspconfig').setup {
   automatic_installation = true,
 }
@@ -320,6 +327,8 @@ require('mason-lspconfig').setup {
 local lspconfig = require('lspconfig')
 lspconfig.ols.setup {}
 lspconfig.pyright.setup {}
+lspconfig.clangd.setup {
+}
 lspconfig.tsserver.setup {
   init_options = {
     preferences = {
