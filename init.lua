@@ -19,7 +19,7 @@ opt.splitright           = true
 opt.showmode             = false
 opt.foldmethod           = 'marker'
 opt.linebreak            = true
--- opt.inccommand           = 'split'
+-- opt.infrocommand           = 'split'
 -- number of lines to keep above and below cursor when f.e. jumping
 opt.scrolloff            = 2
 
@@ -47,8 +47,6 @@ local plugins = {
   { 'neovim/nvim-lspconfig' },
   { 'williamboman/mason.nvim' },
   { 'williamboman/mason-lspconfig.nvim' },
-  -- { 'sainnhe/gruvbox-material' },
-  -- { 'sainnhe/everforest', priority = 1000 },
   { 'Shatur/neovim-ayu' },
   { 'hrsh7th/nvim-cmp', event = { 'InsertEnter', 'CmdlineEnter', 'BufReadPost' } }, -- autocompletion
   { 'onsails/lspkind.nvim' }, -- fancy icons for nvim-cmp
@@ -70,10 +68,15 @@ local plugins = {
 
 require('lazy').setup(plugins)
 
+--------------------------------------------------
+--- Telescope.nvim
+--------------------------------------------------
+
+--[[
 local previewers= require('telescope.previewers')
 local Job = require('plenary.job')
 
-local new_maker = function (filepath, bufnr, opts)
+local function new_maker (filepath, bufnr, opts)
   filepath = vim.fn.expand(filepath)
   Job:new {
     command = 'file',
@@ -90,10 +93,11 @@ local new_maker = function (filepath, bufnr, opts)
     end
   }:sync()
 end
+]]--
 
 require('telescope').setup {
   defaults = {
-    buffer_previewer_maker = new_maker,
+    -- buffer_previewer_maker = new_maker,
     file_ignore_patterns = { 'node_modules', '.git/' },
   },
 }
@@ -102,7 +106,7 @@ require('telescope').setup {
 require('nvim-treesitter.configs').setup {
   ensure_installed = {
     'odin', 'lua', 'javascript', 'c', 'cpp', 'vimdoc', 'java', 'comment',
-    'query', 'jsdoc', 'angular', 'rust', -- 'clangd',
+    'query', 'jsdoc', 'angular', 'rust', 'python', 'rust', 'javascript',
   },
   highlight = { enable = true },
   indent = { enable = true },
@@ -146,13 +150,18 @@ cmp.setup {
       else
         fallback()
       end
-    end)
+    end),
+    ['<C-d>'] = function ()
+      cmp.scroll_docs(2)
+    end,
+    ['<C-u>'] = function ()
+      cmp.scroll_docs(-2)
+    end,
   },
   { name = 'buffer' },
 }
 
-local npairs = require('nvim-autopairs')
-npairs.setup { check_ts = true }
+require('nvim-autopairs').setup { check_ts = true }
 
 -- automatically add parenthesis after tabcompletion
 local cmp_autopairs = require('nvim-autopairs.completion.cmp')
@@ -209,8 +218,6 @@ require('toggleterm').setup {
   end,
 }
 
-
-
 --------------------------------------------------
 -- Theme
 --------------------------------------------------
@@ -259,6 +266,7 @@ keymap.set('n', '<C-x>', '<cmd>:NvimTreeToggle<cr>')
 
 keymap.set('n', '<leader>tt', '<cmd>exe v:count . "ToggleTerm"<cr>')
 keymap.set('n', '<leader>tv', '<cmd>:ToggleTerm direction=vertical<cr>')
+keymap.set('n', '<leader>th', '<cmd>:ToggleTerm direction=horizontal<cr>')
 keymap.set('n', '<leader>tf', '<cmd>exe v:count . "ToggleTerm direction=float"<cr>')
 
 keymap.set('n', '<leader>e', vim.diagnostic.open_float)
@@ -281,7 +289,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
   callback = function(args)
     local opts = { buffer = args.buf }
 
-    vim.lsp.inlay_hint.enable(args.buf, true)
+    -- vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
 
     -- buffer local mappings
     keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
@@ -316,15 +324,46 @@ vim.api.nvim_create_autocmd('FileType', {
 require('mason').setup {
   opts = {
     ensure_installed = {
-      'clangd',
+      'clangd', 'pyright', 'lua_ls',
     },
   },
 }
-require('mason-lspconfig').setup {
+
+local mason_lspconfig = require('mason-lspconfig')
+local lspconfig = require('lspconfig')
+
+-- setup manually installed lsp servers
+lspconfig.ols.setup {}
+
+local handlers = {
+  function (server_name)
+    lspconfig[server_name].setup {}
+  end,
+
+  ['lua_ls'] = function ()
+    lspconfig.lua_ls.setup {
+    settings = {
+      Lua = {
+        runtime = { version = 'LuaJIT' },
+        telemetry = { enable = false },
+        workspace = {
+          -- make the server aware of neovim runtime files
+          library = vim.api.nvim_get_runtime_file('', true),
+        },
+        diagnostics = {
+          globals = { 'vim' },
+        },
+      },
+    },
+    }
+  end
+}
+mason_lspconfig.setup {
   automatic_installation = true,
+  handlers = handlers,
 }
 
-local lspconfig = require('lspconfig')
+--[[
 lspconfig.ols.setup {}
 lspconfig.pyright.setup {}
 lspconfig.clangd.setup {
@@ -336,18 +375,4 @@ lspconfig.tsserver.setup {
     },
   },
 }
-lspconfig.lua_ls.setup {
-  settings = {
-    Lua = {
-      runtime = { version = 'LuaJIT' },
-      telemetry = { enable = false },
-      workspace = {
-        -- make the server aware of neovim runtime files
-        library = vim.api.nvim_get_runtime_file('', true),
-      },
-      diagnostics = {
-        globals = { 'vim' },
-      },
-    },
-  },
-}
+--]]
