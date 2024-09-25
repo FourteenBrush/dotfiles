@@ -1,7 +1,9 @@
-vim.g.loaded_netrw       = true
-vim.g.loaded_netrwPlugin = true
-vim.g.mapleader          = ' '
-vim.g.maplocalleader     = ' '
+vim.g.loaded_netrw          = true
+vim.g.loaded_netrwPlugin    = true
+vim.g.mapleader             = ' '
+vim.g.maplocalleader        = ' '
+vim.g.nvim_tree_group_empty = 1
+vim.g.base46_cache          = vim.fn.stdpath 'data' .. '/nvchad/base46/'
 
 local opt                = vim.opt
 
@@ -22,14 +24,20 @@ opt.linebreak            = true
 -- opt.infrocommand           = 'split'
 -- number of lines to keep above and below cursor when f.e. jumping
 opt.scrolloff            = 2
+-- case insentive search unless \C or capital in search
+opt.ignorecase           = true
+opt.smartcase            = true
+-- set highlight on search
+opt.hlsearch             = true
 
 --------------------------------------------------
 -- Plugins
 --------------------------------------------------
 
 local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
+
 --- @diagnostic disable-next-line: undefined-field
-if not vim.loop.fs_stat(lazypath) then
+if not vim.uv.fs_stat(lazypath) then
   vim.fn.system {
     'git',
     'clone',
@@ -42,14 +50,20 @@ end
 
 opt.rtp:prepend(lazypath)
 
-local plugins = {
+require('lazy').setup {
   { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate', event = { 'BufReadPre', 'BufNewFile' } },
   { 'neovim/nvim-lspconfig' },
   { 'williamboman/mason.nvim' },
   { 'williamboman/mason-lspconfig.nvim' },
-  { 'Shatur/neovim-ayu' },
+  --{ 'Shatur/neovim-ayu' },
   { 'hrsh7th/nvim-cmp', event = { 'InsertEnter', 'CmdlineEnter', 'BufReadPost' } }, -- autocompletion
-  { 'onsails/lspkind.nvim' }, -- fancy icons for nvim-cmp
+  {
+    'L3MON4D3/LuaSnip',
+    build = 'make install_jsregexp',
+    dependencies = { 'rafamadriz/friendly-snippets' },
+  },
+  { 'saadparwaiz1/cmp_luasnip' },
+  { 'onsails/lspkind.nvim' }, -- fancy vscode like icons
   { 'hrsh7th/cmp-nvim-lsp' },
   { 'windwp/nvim-autopairs' },
   { 'nvim-tree/nvim-tree.lua' },
@@ -64,9 +78,14 @@ local plugins = {
   },
   { 'akinsho/toggleterm.nvim', config = true },
   { 'https://github.com/junegunn/vim-easy-align.git' },
+  { 'NvChad/base46', build = function ()
+      require('base46').load_all_highlights()
+    end
+  },
+  { 'NvChad/ui', lazy = false },
+  { 'lewis6991/gitsigns.nvim' },
+  --{ 'ayu-theme/ayu-vim' },
 }
-
-require('lazy').setup(plugins)
 
 --------------------------------------------------
 --- Telescope.nvim
@@ -95,18 +114,22 @@ local function new_maker (filepath, bufnr, opts)
 end
 ]]--
 
-require('telescope').setup {
+local telescope = require('telescope')
+telescope.setup {
   defaults = {
     -- buffer_previewer_maker = new_maker,
     file_ignore_patterns = { 'node_modules', '.git/' },
   },
+  extensions_list = { 'themes' },
 }
+-- TODO: use https://github.com/NvChad/ui/blob/dbdd2cfa7b6267e007e0b87ed7e2ea5c6979ef22/lua/telescope/_extensions/themes.lua#L82
+pcall(telescope.load_extension, 'themes')
 
 --- @diagnostic disable-next-line: missing-fields
 require('nvim-treesitter.configs').setup {
   ensure_installed = {
-    'odin', 'lua', 'javascript', 'c', 'cpp', 'vimdoc', 'java', 'comment',
-    'query', 'jsdoc', 'angular', 'rust', 'python', 'rust', 'javascript',
+    'odin', 'lua', 'javascript', 'c', 'cpp', 'vimdoc', 'java', 'comment', 'query', 'jsdoc',
+    'angular', 'rust', 'python', 'rust', 'javascript', 'diff', 'zig', 'go', 'bash',
   },
   highlight = { enable = true },
   indent = { enable = true },
@@ -126,6 +149,9 @@ require('nvim-treesitter.configs').setup {
   },
 }
 
+local luasnip = require('luasnip')
+require('luasnip.loaders.from_vscode').lazy_load {}
+
 local cmp = require('cmp')
 local lspkind = require('lspkind')
 
@@ -140,23 +166,41 @@ cmp.setup {
   },
   sources = cmp.config.sources {
     { name = 'nvim_lsp' },
+    { name = 'luasnip' },
   },
+  snippet = {
+    expand = function (args)
+      luasnip.lsp_expand(args.body)
+    end,
+  },
+  -- https://github.com/L3MON4D3/LuaSnip/blob/master/DOC.md#api-2
   mapping = cmp.mapping.preset.insert {
+    -- FIXME: conflicting mapping with node_incremental
     ['<C-Space>'] = cmp.mapping.complete(),
-    ['<Tab>'] = cmp.mapping.confirm { select = true },
-    ['<S-Tab>'] = cmp.mapping(function(fallback)
+    ['<C-d>'] = cmp.mapping.scroll_docs(2),
+    ['<C-u>'] = cmp.mapping.scroll_docs(-2),
+    ['<Tab>'] = cmp.mapping(function (fallback)
       if cmp.visible() then
-        cmp.select_prev_item()
+        if luasnip.expandable() then
+          luasnip.expand()
+        else
+          cmp.confirm { select = true }
+        end
+      elseif luasnip.locally_jumpable(1) then
+        luasnip.jump(1)
       else
         fallback()
       end
     end),
-    ['<C-d>'] = function ()
-      cmp.scroll_docs(2)
-    end,
-    ['<C-u>'] = function ()
-      cmp.scroll_docs(-2)
-    end,
+    ['<S-Tab>'] = cmp.mapping(function(fallback)
+      if cmp.visible() then
+        cmp.select_prev_item()
+      elseif luasnip.locally_jumpable(-1) then
+        luasnip.jump(-1)
+      else
+        fallback()
+      end
+    end),
   },
   { name = 'buffer' },
 }
@@ -172,7 +216,11 @@ cmp.event:on(
 
 require('nvim-tree').setup {
   view = { preserve_window_proportions = true },
-  filters = { dotfiles = false },
+  -- TODO: set back to false
+  -- TODO: resize manually to proper size
+  actions = { open_file = { resize_window = true } },
+  filters = { git_ignored = false },
+  renderer = { group_empty = true, highlight_opened_files = 'name' },
 }
 
 -- https://github.com/nvim-tree/nvim-tree.lua/wiki/Auto-Close#ppwwyyxx
@@ -199,7 +247,7 @@ vim.api.nvim_create_autocmd('QuitPre', {
 
 require('lualine').setup {
   options = {
-    theme = 'ayu',
+    theme = 'gruvbox-material',
     component_separators = { left = '', right = '' },
     section_separators = { left = '', right = '' },
     extensions = { 'lazy', 'mason', 'nvim-tree' },
@@ -218,12 +266,28 @@ require('toggleterm').setup {
   end,
 }
 
+require('gitsigns').setup {}
+
 --------------------------------------------------
 -- Theme
 --------------------------------------------------
 
+--[[
+require('ayu').setup {
+  -- disable italic for comments
+  overrides = function()
+    return { Comment = { fg = colors.comment } }
+  end,
+}
 vim.cmd.colorscheme('ayu-dark')
+]]--
 -- vim.cmd [[ :hi NvimTreeFolderIcon guifg=#7094b4 ]]
+-- TODO: which of this crap do we actually need?
+local theme_integrations = {
+  'defaults', 'statusline', 'git', 'cmp', 'syntax', 'lsp', 'treesitter', 'nvimtree', 'statusline', 'telescope', 'term'}
+for _, integration in ipairs(theme_integrations) do
+  dofile(vim.g.base46_cache .. integration)
+end
 
 --------------------------------------------------
 -- Keybindings
@@ -231,6 +295,7 @@ vim.cmd.colorscheme('ayu-dark')
 
 local keymap = vim.keymap
 
+keymap.set('n', '<Esc>', '<cmd>nohlsearch<cr>')
 -- remap splits navigation to just CTRL + hjkl
 keymap.set('n', '<C-h>', '<C-w>h')
 keymap.set('n', '<C-j>', '<C-w>j')
@@ -243,24 +308,29 @@ keymap.set('n', '<C-Right>', '<cmd>:vert res -3<cr>')
 keymap.set('n', '<C-Up>', '<cmd>:res +3<cr>')
 keymap.set('n', '<C-Down>', '<cmd>:res +3<cr>')
 
-local telescope = require('telescope.builtin')
+local builtin = require('telescope.builtin')
 
 keymap.set('n', '<leader>ff', '<cmd>:Telescope find_files hidden=true<cr>')
 keymap.set('n', '<leader>fi', '<cmd>:Telescope find_files hidden=true theme=ivy<cr>')
 keymap.set('n', '<leader>fv', '<cmd>:Telescope find_files hidden=true layout_strategy=vertical<cr>')
 keymap.set('n', '<leader>fc', '<cmd>:Telescope current_buffer_fuzzy_find<cr>')
-keymap.set('n', '<leader>fg', telescope.live_grep)
+keymap.set('n', '<leader>fg', builtin.live_grep)
 keymap.set('n', '<leader>gi', '<cmd>:Telescope live_grep theme=ivy<cr>')
 keymap.set('n', '<leader>gv', '<cmd>:Telescope live_grep layout_strategy=vertical<cr>')
-keymap.set('n', '<leader>fb', telescope.buffers)
-keymap.set('n', '<leader>fh', telescope.help_tags)
-keymap.set('n', '<leader>a', telescope.diagnostics)
-keymap.set('n', '<leader>d', telescope.lsp_document_symbols)
-keymap.set('n', '<leader>gc', telescope.git_commits)
-keymap.set('n', '<leader>gs', telescope.git_status)
-keymap.set('n', '<leader>gb', telescope.git_branches)
+keymap.set('n', '<leader>fb', builtin.buffers)
+keymap.set('n', '<leader>fh', builtin.help_tags)
+keymap.set('n', '<leader>a', builtin.diagnostics)
+keymap.set('n', '<leader>d', builtin.lsp_document_symbols)
+keymap.set('n', '<leader>gc', builtin.git_commits)
+keymap.set('n', '<leader>gs', builtin.git_status)
+keymap.set('n', '<leader>gb', builtin.git_branches)
 
 keymap.set('n', '<C-x>', '<cmd>:NvimTreeToggle<cr>')
+
+local tabufline = require('nvchad.tabufline')
+keymap.set('n', '<Leader>x', tabufline.close_buffer)
+keymap.set('n', '<Leader><Left>', tabufline.prev)
+keymap.set('n', '<Leader><Right>', tabufline.next)
 
 -- tt :vnew term://fish
 
@@ -324,7 +394,7 @@ vim.api.nvim_create_autocmd('FileType', {
 require('mason').setup {
   opts = {
     ensure_installed = {
-      'clangd', 'pyright', 'lua_ls',
+      'clangd', 'pyright', 'lua_ls', 'zls', 'typescript-language-server', 'bashls',
     },
   },
 }
@@ -337,24 +407,25 @@ lspconfig.ols.setup {}
 
 local handlers = {
   function (server_name)
+    -- TODO: provide on_attach and capabilities?
     lspconfig[server_name].setup {}
   end,
 
   ['lua_ls'] = function ()
     lspconfig.lua_ls.setup {
-    settings = {
-      Lua = {
-        runtime = { version = 'LuaJIT' },
-        telemetry = { enable = false },
-        workspace = {
-          -- make the server aware of neovim runtime files
-          library = vim.api.nvim_get_runtime_file('', true),
-        },
-        diagnostics = {
-          globals = { 'vim' },
+      settings = {
+        Lua = {
+          runtime = { version = 'LuaJIT' },
+          telemetry = { enable = false },
+          workspace = {
+            -- make the server aware of neovim runtime files
+            library = vim.api.nvim_get_runtime_file('', true),
+          },
+          diagnostics = {
+            globals = { 'vim' },
+          },
         },
       },
-    },
     }
   end
 }
