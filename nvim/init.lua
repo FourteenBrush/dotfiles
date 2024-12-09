@@ -3,7 +3,7 @@ vim.g.loaded_netrwPlugin    = true
 vim.g.mapleader             = ' '
 vim.g.maplocalleader        = ' '
 vim.g.nvim_tree_group_empty = 1
-vim.g.base46_cache          = vim.fn.stdpath 'data' .. '/nvchad/base46/'
+vim.g.base46_cache          = vim.fn.stdpath('data') .. '/nvchad/base46/'
 
 local opt                   = vim.opt
 opt.syntax                  = 'enable'
@@ -24,7 +24,7 @@ opt.splitright              = true
 opt.showmode                = false
 opt.foldmethod              = 'marker'
 opt.linebreak               = true
--- opt.infrocommand           = 'split'
+-- opt.inccommand           = 'split'
 -- number of lines to keep above and below cursor when f.e. jumping
 opt.scrolloff               = 2
 -- case insentive search unless \C or capital in search
@@ -54,11 +54,20 @@ end
 opt.rtp:prepend(lazypath)
 
 require('lazy').setup {
-  { 'nvim-treesitter/nvim-treesitter',  build = ':TSUpdate',                                     event = { 'BufReadPre', 'BufNewFile' } },
+  { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate', event = { 'BufReadPre', 'BufNewFile' } },
   { 'neovim/nvim-lspconfig' },
-  { 'williamboman/mason.nvim' },
+  {
+    'williamboman/mason.nvim',
+    opts = {
+      opts = {
+        ensure_installed = {
+          'clangd', 'pyright', 'lua_ls', 'zls', 'typescript-language-server', 'bashls',
+        },
+      },
+    },
+  },
   { 'williamboman/mason-lspconfig.nvim' },
-  { 'hrsh7th/nvim-cmp',                 event = { 'InsertEnter', 'CmdlineEnter', 'BufReadPost' } }, -- autocompletion
+  { 'hrsh7th/nvim-cmp', event = { 'CmdlineEnter', 'BufReadPost' } }, -- autocompletion
   {
     'L3MON4D3/LuaSnip',
     build = 'make install_jsregexp',
@@ -67,7 +76,7 @@ require('lazy').setup {
   { 'saadparwaiz1/cmp_luasnip' },
   { 'onsails/lspkind.nvim' }, -- fancy vscode like icons
   { 'hrsh7th/cmp-nvim-lsp' },
-  { 'windwp/nvim-autopairs' },
+  { 'windwp/nvim-autopairs', opts = { check_ts = true } },
   { 'nvim-tree/nvim-tree.lua' },
   {
     'nvim-telescope/telescope.nvim',
@@ -77,15 +86,23 @@ require('lazy').setup {
   {
     'nvim-lualine/lualine.nvim',
     dependencies = { 'nvim-tree/nvim-web-devicons' },
+    opts = {
+      options = {
+        theme = 'gruvbox-material',
+        component_separators = { left = '', right = '' },
+        section_separators = { left = '', right = '' },
+        extensions = { 'lazy', 'mason', 'nvim-tree' },
+      },
+    },
   },
-  { 'akinsho/toggleterm.nvim',                       config = true },
+  { 'akinsho/toggleterm.nvim' },
   { 'https://github.com/junegunn/vim-easy-align.git' },
   { 'NvChad/base46', build = function()
     require('base46').load_all_highlights()
   end,
   },
   { 'NvChad/ui',              lazy = false },
-  { 'lewis6991/gitsigns.nvim' },
+  { 'lewis6991/gitsigns.nvim', config = true },
   {
     'folke/flash.nvim',
     event = 'VeryLazy',
@@ -95,8 +112,19 @@ require('lazy').setup {
       { '<Leader>R', mode = { 'o', 'x' },      function() require('flash').treesitter_search() end },
     },
   },
-  { 'windwp/nvim-ts-autotag' },
-  { 'stevearc/conform.nvim' },
+  { 'windwp/nvim-ts-autotag', config = true },
+  {
+    'stevearc/conform.nvim', opts = {
+      formatters_by_ft = {
+        javascript = { 'prettierd', 'prettier', stop_after_first = true },
+      },
+    },
+  },
+  {
+    'ThePrimeagen/harpoon',
+    branch = 'harpoon2',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+  },
 }
 
 --------------------------------------------------
@@ -186,13 +214,13 @@ local cmp = require('cmp')
 
 cmp.setup {
   enabled = function()
-    local context = require('cmp.config.context')
     -- keep command mode completion enabled when cursor is in a comment
     if vim.api.nvim_get_mode().mode == 'c' then
       return true
-    else
-      return not context.in_treesitter_capture('comment') and not context.in_syntax_group('Comment')
     end
+
+    local context = require('cmp.config.context')
+    return not context.in_treesitter_capture('comment') and not context.in_syntax_group('Comment')
   end,
   window = {
     -- completion = cmp.config.window.bordered(),
@@ -218,7 +246,7 @@ cmp.setup {
   }, { name = 'buffer' }),
   snippet = {
     expand = function(args)
-      vim.notify("expanding snippet in snippet.expand")
+      -- vim.notify("expanding snippet in snippet.expand")
       luasnip.lsp_expand(args.body)
     end,
   },
@@ -256,8 +284,6 @@ cmp.setup {
     end),
   },
 }
-
-require('nvim-autopairs').setup { check_ts = true }
 
 -- automatically add parenthesis on tabcompletion
 local cmp_autopairs = require('nvim-autopairs.completion.cmp')
@@ -297,15 +323,6 @@ vim.api.nvim_create_autocmd('QuitPre', {
   end,
 })
 
-require('lualine').setup {
-  options = {
-    theme = 'gruvbox-material',
-    component_separators = { left = '', right = '' },
-    section_separators = { left = '', right = '' },
-    extensions = { 'lazy', 'mason', 'nvim-tree' },
-  },
-}
-
 require('toggleterm').setup {
   -- there's an mapping timeout issue with this approach
   -- open_mapping = '<leader>tt',
@@ -316,18 +333,35 @@ require('toggleterm').setup {
       return vim.o.columns * 0.4
     end
   end,
-}
-
-require('gitsigns').setup {}
-
-require('nvim-ts-autotag').setup {}
-
-local conform = require('conform')
-conform.setup {
-  formatters_by_ft = {
-    javascript = { 'prettierd', 'prettier', stop_after_first = true },
+  shade_terminals = false,
+  highlights = {
+    -- Normal = { guibg = '#ffffff' --[[  '#1e2122' ]], guifg = '#ffffff' },
   },
 }
+
+local harpoon = require('harpoon')
+harpoon:setup {}
+
+local conf = require('telescope.config').values
+local function toggle_telescope(harpoon_files)
+  local file_paths = {}
+  for _, item in ipairs(harpoon_files.items) do
+    table.insert(file_paths, item.value)
+  end
+
+  require('telescope.pickers').new({}, {
+    prompt_title = "Harpoon",
+    finder = require('telescope.finders').new_table {
+      results = file_paths,
+    },
+    previewer = conf.file_previewer {},
+    sorter = conf.generic_sorter {},
+  }):find()
+end
+
+vim.keymap.set('n', '<Leader>e', function ()
+  toggle_telescope(harpoon:list())
+end)
 
 --------------------------------------------------
 -- Theme
@@ -345,7 +379,7 @@ vim.cmd.colorscheme('ayu-dark')
 -- vim.cmd [[ :hi NvimTreeFolderIcon guifg=#7094b4 ]]
 -- TODO: which of this crap do we actually need?
 local theme_integrations = {
-  'defaults', 'statusline', 'git', 'cmp', 'syntax', 'lsp', 'treesitter', 'nvimtree', 'statusline', 'telescope', 'term' }
+  'defaults', 'statusline', 'git', 'cmp', 'syntax', 'lsp', 'treesitter', 'nvimtree', 'statusline', 'telescope', --[[ 'term' --]] }
 for _, integration in ipairs(theme_integrations) do
   dofile(vim.g.base46_cache .. integration)
 end
@@ -364,8 +398,8 @@ keymap.set('n', '<C-k>', '<C-w>k')
 keymap.set('n', '<C-l>', '<C-w>l')
 
 -- make adjusting split sizes a bit more friendly
-keymap.set('n', '<C-Left>', '<cmd>:vert res +3<cr>')
-keymap.set('n', '<C-Right>', '<cmd>:vert res -3<cr>')
+keymap.set('n', '<C-Left>', '<cmd>:vert res -3<cr>')
+keymap.set('n', '<C-Right>', '<cmd>:vert res +3<cr>')
 keymap.set('n', '<C-Up>', '<cmd>:res +3<cr>')
 keymap.set('n', '<C-Down>', '<cmd>:res +3<cr>')
 
@@ -381,7 +415,7 @@ keymap.set('n', '<leader>gi', '<cmd>:Telescope live_grep theme=ivy<cr>')
 keymap.set('n', '<leader>gv', '<cmd>:Telescope live_grep layout_strategy=vertical<cr>')
 keymap.set('n', '<leader>fb', builtin.buffers)
 keymap.set('n', '<leader>fh', builtin.help_tags)
-keymap.set('n', '<leader>a', builtin.diagnostics)
+-- keymap.set('n', '<leader>a', builtin.diagnostics)
 keymap.set('n', '<leader>d', builtin.lsp_document_symbols)
 keymap.set('n', '<leader>gc', builtin.git_commits)
 keymap.set('n', '<leader>gs', builtin.git_status)
@@ -401,7 +435,7 @@ keymap.set('n', '<leader>tv', '<cmd>exe v:count . "ToggleTerm direction=vertical
 keymap.set('n', '<leader>th', '<cmd>exe v:count . "ToggleTerm direction=horizontal"<cr>')
 keymap.set('n', '<leader>tf', '<cmd>exe v:count . "ToggleTerm direction=float"<cr>')
 
-keymap.set('n', '<leader>e', vim.diagnostic.open_float)
+-- keymap.set('n', '<leader>e', vim.diagnostic.open_float)
 
 keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', {
   desc = 'Exit terminal mode',
@@ -409,6 +443,13 @@ keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', {
 
 keymap.set('x', 'ga', '<Plug>(EasyAlign)', { silent = true })
 keymap.set('n', 'ga', '<Plug>(EasyAlign)', { silent = true })
+
+keymap.set('n', '<Leader>a', function() harpoon:list():add() end)
+keymap.set('n', '<Leader>r', function() harpoon:list():remove() end)
+keymap.set('n', '<Leader>h', function()
+  harpoon.ui:toggle_quick_menu(harpoon:list())
+end)
+keymap.set('n', '<Leader>c', function() harpoon:list():clear() end)
 
 --------------------------------------------------
 -- Autocommands
@@ -442,14 +483,11 @@ vim.api.nvim_create_autocmd('BufEnter', {
   group = lspgroup,
   pattern = { '*.html', '*.xhtml', '*.js', '*.jsx', '*.ts', '*.tsx', '*.css', '*.css', '*.lua' },
   callback = function(event)
-    local formatters_for_buf = conform.list_formatters(event.buf)
-    if #formatters_for_buf > 0 then
-      return -- do not override configs from formatters
-    end
+    local formatters_for_buf = require('conform').list_formatters(event.buf)
+    if #formatters_for_buf > 0 then return end -- do not override config from formatter
 
     for _, key in ipairs({ 'tabstop', 'shiftwidth', 'softtabstop' }) do
-      vim.bo[event.buf][key] = 2
-      -- vim.api.nvim_set_option_value(key, 2, { scope = 'local' })
+      vim.api.nvim_set_option_value(key, 2, { buf = event.buf })
     end
   end,
 })
@@ -457,14 +495,6 @@ vim.api.nvim_create_autocmd('BufEnter', {
 --------------------------------------------------
 -- Lsp related
 --------------------------------------------------
-
-require('mason').setup {
-  opts = {
-    ensure_installed = {
-      'clangd', 'pyright', 'lua_ls', 'zls', 'typescript-language-server', 'bashls',
-    },
-  },
-}
 
 local lspconfig = require('lspconfig')
 
