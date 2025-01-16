@@ -15,9 +15,10 @@ opt.smarttab                = true
 -- use the appropriate number of spaces to insert a tab
 opt.expandtab               = true
 -- number of spaces that a tab counts for
-opt.tabstop                 = 4
+opt.tabstop                 = 2
 -- number of spaces to use for each step of (auto)indent
-opt.shiftwidth              = 4
+opt.shiftwidth              = 2
+
 opt.smartcase               = true
 opt.splitbelow              = true
 opt.splitright              = true
@@ -61,7 +62,7 @@ require('lazy').setup {
     opts = {
       opts = {
         ensure_installed = {
-          'clangd', 'pyright', 'lua_ls', 'zls', 'typescript-language-server', 'bashls',
+          'clangd', 'pyright', 'lua_ls', 'zls', 'typescript-language-server', 'bashls', 'prismals',
         },
       },
     },
@@ -186,7 +187,7 @@ require('nvim-treesitter.configs').setup {
   ensure_installed = {
     'odin', 'lua', 'javascript', 'c', 'cpp', 'vimdoc', 'java', 'comment', 'query', 'jsdoc', 'dart',
     'angular', 'rust', 'python', 'rust', 'javascript', 'diff', 'zig', 'go', 'bash', 'xml', 'typescript',
-    'css', 'fish', 'make',
+    'css', 'fish', 'make', 'tsx', 'graphql', 'prisma', 'terraform',
   },
   highlight = { enable = true },
   indent = { enable = true },
@@ -427,6 +428,9 @@ local tabufline = require('nvchad.tabufline')
 keymap.set('n', '<Leader>x', tabufline.close_buffer)
 keymap.set('n', '<Leader><Left>', tabufline.prev)
 keymap.set('n', '<Leader><Right>', tabufline.next)
+keymap.set('n', '<Leader>lx', function() tabufline.closeBufs_at_direction("left") end)
+keymap.set('n', '<Leader>rx', function() tabufline.closeBufs_at_direction("right") end)
+keymap.set('n', '<Leader>ax', function() tabufline.closeAllBufs(false) end)
 
 -- tt :vnew term://fish
 
@@ -484,7 +488,10 @@ vim.api.nvim_create_autocmd('BufEnter', {
   pattern = { '*.html', '*.xhtml', '*.js', '*.jsx', '*.ts', '*.tsx', '*.css', '*.css', '*.lua' },
   callback = function(event)
     local formatters_for_buf = require('conform').list_formatters(event.buf)
-    if #formatters_for_buf > 0 then return end -- do not override config from formatter
+    if #formatters_for_buf > 0 then
+      vim.notify "formatter found"
+      return
+    end -- do not override config from formatter
 
     for _, key in ipairs({ 'tabstop', 'shiftwidth', 'softtabstop' }) do
       vim.api.nvim_set_option_value(key, 2, { buf = event.buf })
