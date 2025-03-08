@@ -201,10 +201,16 @@ widget_defaults = dict(
     font="Ubuntu Sans SemiBold",
     fontsize=12,
     padding=3,
+    # foreground="#7d7d7d"
+    foreground="#c6c6c6"
 )
 extension_defaults = widget_defaults.copy()
 
 def top_bar_widgets(primary_screen: bool=False) -> list:
+    block_template = '''
+<span foreground="#6b6a6a">[{label}</span>{{}}
+<span foreground="#6b6a6a">]</span>'''.replace("\n", "")
+
     first_half = [
         widget.CurrentLayout(),
         widget.GroupBox(),
@@ -218,23 +224,22 @@ def top_bar_widgets(primary_screen: bool=False) -> list:
         ),
     ]
     second_half = [
-        widget.MemoryGraph(),
-        widget.Volume(),
-        widget.Sep(),
-        widget.Bluetooth(default_text=" {connected_devices}"),
-        widget.Sep(),
+        widget.Memory(fmt=block_template.format(label="   Mem: "), format="{MemPercent:.1f}%"),
+        widget.Volume(fmt=block_template.format(label="   Vol: ")),
+        widget.Bluetooth(fmt=block_template.format(label="")),
         widget.Backlight(
+            fmt=block_template.format(label="Bri: "),
             brightness_file="/sys/class/backlight/nvidia_0/brightness",
             max_brightness_file="/sys/class/backlight/nvidia_0/max_brightness",
             min_brightness=5,
             step=5,
         ),
-        widget.Sep(),
-        widget.Battery(fmt="⚡ {}", charge_char="", discharge_char=""),
-        widget.Sep(),
-        widget.Clock(format="%a %d-%m %H:%M %p"),
-        widget.Sep(),
-        widget.QuickExit(default_text="", padding=6),
+        widget.Battery(
+            fmt=block_template.format(label="Bat: "),
+            format="{char}{percent:2.0%} {hour:d}:{min:02d}", # Hide wattage
+            charge_char="",
+            discharge_char=""),
+        widget.Clock(fmt=block_template.format(label="") ,format="%a %d-%m %H:%M %p"),
     ]
     if primary_screen:
         first_half.append(widget.Systray())
@@ -248,6 +253,7 @@ screens = [
         top=bar.Bar(
             top_bar_widgets(),
             25,
+            background="#222222",
         ),
         wallpaper=wallpaper_path,
     ),
@@ -255,6 +261,7 @@ screens = [
         top=bar.Bar(
             top_bar_widgets(primary_screen=True),
             25,
+            background="#222222",
             # border_width=[2, 0, 2, 0],  # Draw top and bottom borders
             # border_color=["ff00ff", "000000", "ff00ff", "000000"]  # Borders are magenta
         ),
@@ -278,7 +285,7 @@ dgroups_app_rules = []  # type: list
 follow_mouse_focus = True
 bring_front_click = "floating_only"
 floats_kept_above = True
-cursor_warp = True
+cursor_warp = False
 
 floating_layout = layout.Floating(
     **layout_defaults,
