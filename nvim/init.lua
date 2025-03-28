@@ -4,6 +4,7 @@ vim.g.mapleader             = ' '
 vim.g.maplocalleader        = ' '
 vim.g.nvim_tree_group_empty = 1
 vim.g.base46_cache          = vim.fn.stdpath('data') .. '/nvchad/base46/'
+vim.g.copilot_no_tab_map    = true
 
 local opt                   = vim.opt
 opt.syntax                  = 'enable'
@@ -15,9 +16,9 @@ opt.smarttab                = true
 -- use the appropriate number of spaces to insert a tab
 opt.expandtab               = true
 -- number of spaces that a tab counts for
-opt.tabstop                 = 2
+opt.tabstop                 = 4
 -- number of spaces to use for each step of (auto)indent
-opt.shiftwidth              = 2
+opt.shiftwidth              = 4
 
 opt.smartcase               = true
 opt.splitbelow              = true
@@ -54,6 +55,16 @@ end
 
 opt.rtp:prepend(lazypath)
 
+local is_nixos = vim.fn.isdirectory('/nix/store')
+local lsp_clients = { 'clangd', 'pyright', 'lua_ls', 'zls', 'typescript-language-server', 'bashls', 'prismals', 'nixd', 'jdtls' }
+-- filter oit problematic lsp servers, which usually package themselves as a .so; assume the wrapped version
+-- is used instead on nixos
+if not is_nixos then
+  table.insert(lsp_clients, 'lua_ls')
+end
+
+local lombok_path = vim.fn.stdpath('data') .. '/mason/packages/jdtls/lombok-patched.jar'
+
 require('lazy').setup {
   { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate', event = { 'BufReadPre', 'BufNewFile' } },
   { 'neovim/nvim-lspconfig' },
@@ -61,9 +72,7 @@ require('lazy').setup {
     'williamboman/mason.nvim',
     opts = {
       opts = {
-        ensure_installed = {
-          'clangd', 'pyright', 'lua_ls', 'zls', 'typescript-language-server', 'bashls', 'prismals',
-        },
+        ensure_installed = lsp_clients,
       },
     },
   },
@@ -100,7 +109,7 @@ require('lazy').setup {
   { 'https://github.com/junegunn/vim-easy-align.git' },
   { 'NvChad/base46', build = function()
     require('base46').load_all_highlights()
-  end,
+    end,
   },
   { 'NvChad/ui',              lazy = false },
   { 'lewis6991/gitsigns.nvim', config = true },
@@ -125,6 +134,22 @@ require('lazy').setup {
     'ThePrimeagen/harpoon',
     branch = 'harpoon2',
     dependencies = { 'nvim-lua/plenary.nvim' },
+  },
+  { 'github/copilot.vim' },
+  {
+    'mfussenegger/nvim-jdtls',
+    init = function ()
+      -- download the lombok jar if not present (the shipped one seems to do nothing)
+      -- for some stupid reason the shipped one is still needed as an agent, otherwise there are still errors..
+      -- so dont ask me about the state of either of those jars.
+      -- It could happen sometimes that errors concerning lombok generated code appear
+      -- but an :e usually makes them go away???
+      -- Also jdtls seems to be spawned twice?
+      if vim.fn.filereadable(lombok_path) == 0 then
+        vim.print('Downloading actually working lombok jar')
+        vim.fn.system { 'curl', '-L', '-o', lombok_path, 'https://projectlombok.org/downloads/lombok.jar' }
+      end
+    end
   },
 }
 
@@ -186,7 +211,7 @@ pcall(telescope.load_extension, 'file_browser')
 require('nvim-treesitter.configs').setup {
   ensure_installed = {
     'odin', 'lua', 'javascript', 'c', 'cpp', 'vimdoc', 'java', 'comment', 'query', 'jsdoc', 'dart',
-    'angular', 'rust', 'python', 'rust', 'javascript', 'diff', 'zig', 'go', 'bash', 'xml', 'typescript',
+    'angular', 'rust', 'python', 'javascript', 'diff', 'zig', 'go', 'bash', 'xml', 'typescript',
     'css', 'fish', 'make', 'tsx', 'graphql', 'prisma', 'terraform',
   },
   highlight = { enable = true },
@@ -295,11 +320,21 @@ cmp.event:on(
 
 require('nvim-tree').setup {
   view = { preserve_window_proportions = false },
-  -- TODO: set back to false
+  -- TODO: set back to true
   -- TODO: resize manually to proper size
-  actions = { open_file = { resize_window = false } },
+  -- TODO: some issue when opening another file, the panel gets resized
+  actions = { open_file = { resize_window = true } },
   filters = { git_ignored = false },
-  renderer = { group_empty = true, highlight_opened_files = 'name' },
+  renderer = {
+    group_empty = true,
+    highlight_opened_files = 'name',
+    indent_markers = {
+      enable = true,
+    },
+    icons = {
+      show = { folder_arrow = false },
+    },
+  },
 }
 
 -- https://github.com/nvim-tree/nvim-tree.lua/wiki/Auto-Close#ppwwyyxx
@@ -425,6 +460,7 @@ keymap.set('n', '<leader>gb', builtin.git_branches)
 keymap.set('n', '<C-x>', '<cmd>:NvimTreeToggle<cr>')
 
 local tabufline = require('nvchad.tabufline')
+require('nvchad.colorify')
 keymap.set('n', '<Leader>x', tabufline.close_buffer)
 keymap.set('n', '<Leader><Left>', tabufline.prev)
 keymap.set('n', '<Leader><Right>', tabufline.next)
@@ -477,25 +513,114 @@ vim.api.nvim_create_autocmd('LspAttach', {
     keymap.set('n', 'gr', require('nvchad.lsp.renamer'), opts)
     keymap.set('n', 'gu', vim.lsp.buf.references, opts)
     keymap.set('n', '<leader>fd', function()
-      vim.lsp.buf.format { async = true }
-      vim.print('Formatted document')
+      require('conform').format {
+        lsp_format = 'fallback',
+        callback = function()
+          vim.print('Formatted document')
+        end,
+      }
     end, opts)
   end,
 })
 
 vim.api.nvim_create_autocmd('BufEnter', {
   group = lspgroup,
-  pattern = { '*.html', '*.xhtml', '*.js', '*.jsx', '*.ts', '*.tsx', '*.css', '*.css', '*.lua' },
+  pattern = { '*.html', '*.xhtml', '*.js', '*.jsx', '*.ts', '*.tsx', '*.css', '*.scss', '*.lua', '*.json', '*.nix', '*.py' },
   callback = function(event)
     local formatters_for_buf = require('conform').list_formatters(event.buf)
     if #formatters_for_buf > 0 then
-      vim.notify "formatter found"
       return
     end -- do not override config from formatter
 
     for _, key in ipairs({ 'tabstop', 'shiftwidth', 'softtabstop' }) do
       vim.api.nvim_set_option_value(key, 2, { buf = event.buf })
     end
+  end,
+})
+
+local home = os.getenv 'HOME'
+
+local workspace_path = home .. '/.local/share/nvim/jdtls_workspace/'
+local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ':p:h:t')
+local workspace_dir = workspace_path .. project_name
+
+local capabilities = require('cmp_nvim_lsp').default_capabilities(vim.lsp.protocol.make_client_capabilities())
+
+local function start_jdtls()
+  local jdtls_opts = {
+    capabilities = capabilities,
+    -- cmd = {
+    --   'jdtls',
+    --   '--jvm-arg=-Declipse.application=org.eclipse.jdt.ls.core.id1',
+    --   '--jvm-arg=-Dosgi.bundles.defaultStartLevel=4',
+    --   '--jvm-arg=-Declipse.product=org.eclipse.jdt.ls.core.product',
+    --   '--jvm-arg=-Dlog.protocol=true',
+    --   '--jvm-arg=-Dlog.level=ALL',
+    --   '--jvm-arg=-Xmx1g',
+    --   '--jvm-arg=--add-modules=ALL-SYSTEM',
+    --   '--jvm-arg=--add-opens',
+    --   '--jvm-arg=java.base/java.util=ALL-UNNAMED',
+    --   '--jvm-arg=--add-opens',
+    --   '--jvm-arg=java.base/java.lang=ALL-UNNAMED',
+    --   '--jvm-arg=--add-modules=java.compiler',
+    --   '--jvm-arg=-javaagent:' .. home .. '/.local/share/nvim/mason/packages/jdtls/lombok.jar',
+    --   '--jvm-arg=-Dlombok.verbose=true',
+    --   -- '--jvm-arg=-Xbootclasspath/a:' .. home .. '/.local/share/nvim/mason/packages/jdtls/lombok.jar',
+    --   '-configuration',
+    --   home .. '/.local/share/nvim/mason/packages/jdtls/config_linux',
+    --   '-data',
+    --   workspace_dir,
+    -- },
+    cmd = {
+      'java',
+      '-Declipse.application=org.eclipse.jdt.ls.core.id1',
+      '-Dosgi.bundles.defaultStartLevel=4',
+      '-Declipse.product=org.eclipse.jdt.ls.core.product',
+      '-Dlog.protocol=true',
+      '-Dlog.level=ALL',
+      '-Xmx1g',
+      '--add-modules=ALL-SYSTEM',
+      '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+      '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+      '-javaagent:' .. home .. '/.local/share/nvim/mason/packages/jdtls/lombok.jar',
+      -- '-javaagent:' .. home .. '/.local/share/nvim/mason/packages/jdtls/lombok-patched.jar',
+      '-jar',
+      vim.fn.glob(home .. '/.local/share/nvim/mason/packages/jdtls/plugins/org.eclipse.equinox.launcher_*.jar'),
+      '-configuration',
+      home .. '/.local/share/nvim/mason/packages/jdtls/config_linux',
+      '-data', workspace_dir,
+    },
+    settings = {
+      java = {
+        configuration = {
+          updateBuildConfiguration = 'interactive',
+        },
+        inlayHints = {
+          parameterNames = { enabled = 'all' },
+        },
+      },
+      references = {
+        includeDecompiledSources = true,
+      },
+      referenceCodeLens = { enabled = true },
+    },
+  }
+
+  require('jdtls').start_or_attach(jdtls_opts)
+end
+
+vim.api.nvim_create_autocmd('FileType', {
+  group = lspgroup,
+  pattern = 'java',
+  callback = function()
+    if vim.env.JDTLS_JVM_ARGS == nil then
+      -- cant really override the env for the spawned lsp clients so require the parent shell to do that
+      vim.notify(
+        'env var JDTLS_JVM_ARGS not set, lombok will not work correctly; set it to -javaagent:' .. lombok_path,
+        vim.log.levels.WARN)
+    end
+
+    start_jdtls()
   end,
 })
 
@@ -507,8 +632,36 @@ local lspconfig = require('lspconfig')
 
 -- setup manually installed lsp servers
 lspconfig.ols.setup {}
-
-local capabilities = require('cmp_nvim_lsp').default_capabilities(vim.lsp.protocol.make_client_capabilities())
+if is_nixos then
+  lspconfig.lua_ls.setup {
+    settings = {
+      Lua = {
+        runtime = { version = 'LuaJIT' },
+        telemetry = { enable = false },
+        workspace = {
+          -- make the server aware of neovim runtime files
+          library = vim.api.nvim_get_runtime_file('', true),
+        },
+        diagnostics = {
+          globals = { 'vim' },
+        },
+      },
+    },
+  }
+end
+lspconfig.nixd.setup {
+  settings = {
+    nixd = {
+      nixpkgs = { expr = 'import <nixpkgs> {}' },
+      formatting = { command = { 'nixfmt-rfc-style' } },
+      options = {
+        home_manager = {
+          expr = '(builtins.getFlake "' .. home .. '/.config/home-manager/flake.nix").homeConfigurations.cluster2.options',
+        },
+      },
+    },
+  },
+}
 
 local handlers = {
   function(server_name)
@@ -517,23 +670,23 @@ local handlers = {
     }
   end,
 
-  ['lua_ls'] = function()
-    lspconfig.lua_ls.setup {
-      settings = {
-        Lua = {
-          runtime = { version = 'LuaJIT' },
-          telemetry = { enable = false },
-          workspace = {
-            -- make the server aware of neovim runtime files
-            library = vim.api.nvim_get_runtime_file('', true),
-          },
-          diagnostics = {
-            globals = { 'vim' },
-          },
-        },
-      },
-    }
-  end
+  -- ['lua_ls'] = function()
+  --   lspconfig.lua_ls.setup {
+  --     settings = {
+  --       Lua = {
+  --         runtime = { version = 'LuaJIT' },
+  --         telemetry = { enable = false },
+  --         workspace = {
+  --           -- make the server aware of neovim runtime files
+  --           library = vim.api.nvim_get_runtime_file('', true),
+  --         },
+  --         diagnostics = {
+  --           globals = { 'vim' },
+  --         },
+  --       },
+      -- },
+    -- }
+  -- end
 }
 
 require('mason-lspconfig').setup {
