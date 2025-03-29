@@ -39,7 +39,7 @@ opt.undofile                = true
 -- Plugins
 --------------------------------------------------
 
-local lazypath              = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
+local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
 
 --- @diagnostic disable-next-line: undefined-field
 if not vim.uv.fs_stat(lazypath) then
@@ -56,10 +56,44 @@ end
 opt.rtp:prepend(lazypath)
 
 local is_nixos = vim.fn.isdirectory('/nix/store')
-local lsp_clients = { 'clangd', 'pyright', 'lua_ls', 'zls', 'typescript-language-server', 'bashls', 'prismals', 'nixd', 'jdtls' }
--- filter oit problematic lsp servers, which usually package themselves as a .so; assume the wrapped version
+local home = os.getenv 'HOME'
+
+local lsp_clients = { 'clangd', 'pyright', 'zls', 'typescript-language-server', 'bashls', 'prismals', 'nixd', 'jdtls' }
+local lsp_configs = {
+  ols = {},
+  nixd = {
+    settings = {
+      nixd = {
+        nixpkgs = { expr = 'import <nixpkgs> {}' },
+        formatting = { command = { 'nixfmt-rfc-style' } },
+        options = {
+          home_manager = {
+            expr = '(builtins.getFlake "' .. home .. '/.config/home-manager/flake.nix").homeConfigurations.cluster2.options',
+          },
+        },
+      },
+    },
+  },
+  lua_ls = {
+    settings = {
+      Lua = {
+        runtime = { version = 'LuaJIT' },
+        telemetry = { enable = false },
+        workspace = {
+          -- make the server aware of neovim runtime files
+          library = vim.api.nvim_get_runtime_file('', true),
+        },
+        diagnostics = {
+          globals = { 'vim' },
+        },
+      },
+    },
+  },
+}
+
+-- filter out problematic lsp servers, which usually package themselves as a .so; assume the wrapped version
 -- is used instead on nixos
-if not is_nixos then
+if is_nixos == 0 then
   table.insert(lsp_clients, 'lua_ls')
 end
 
@@ -67,7 +101,21 @@ local lombok_path = vim.fn.stdpath('data') .. '/mason/packages/jdtls/lombok-patc
 
 require('lazy').setup {
   { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate', event = { 'BufReadPre', 'BufNewFile' } },
-  { 'neovim/nvim-lspconfig' },
+  { 'williamboman/mason-lspconfig.nvim' },
+  {
+    'neovim/nvim-lspconfig',
+    dependencies = { 'saghen/blink.cmp' },
+    opts = { servers = lsp_configs },
+    config = function (_, opts)
+      local lspconfig = require('lspconfig')
+      local blink_cmp = require('blink.cmp')
+
+      for server, config in pairs(opts.servers) do
+        config.capabilities = blink_cmp.get_lsp_capabilities(config.capabilities)
+        lspconfig[server].setup(config)
+      end
+    end
+  },
   {
     'williamboman/mason.nvim',
     opts = {
@@ -76,18 +124,50 @@ require('lazy').setup {
       },
     },
   },
-  { 'williamboman/mason-lspconfig.nvim' },
-  { 'hrsh7th/nvim-cmp', event = { 'CmdlineEnter', 'BufReadPost' } }, -- autocompletion
-  {
-    'L3MON4D3/LuaSnip',
-    build = 'make install_jsregexp',
-    dependencies = { 'rafamadriz/friendly-snippets' },
-  },
-  { 'saadparwaiz1/cmp_luasnip' },
   { 'onsails/lspkind.nvim' }, -- fancy vscode like icons
-  { 'hrsh7th/cmp-nvim-lsp' },
-  { 'windwp/nvim-autopairs', opts = { check_ts = true } },
   { 'nvim-tree/nvim-tree.lua' },
+  {
+    'Saghen/blink.cmp',
+    dependencies = { 'rafamadriz/friendly-snippets' },
+    version = '*',
+    opts = {
+      keymap = {
+        preset = 'super-tab',
+        ['<C-k>'] = { 'show_documentation' },
+        ['<C-u>'] = { 'scroll_documentation_up' },
+        ['<C-d>'] = { 'scroll_documentation_down' },
+      },
+      signature = { enabled = true },
+      completion = {
+        documentation = { auto_show = true },
+        -- https://cmp.saghen.dev/recipes.html#nvim-web-devicons-lspkind
+        menu = {
+          draw = {
+            components = {
+              kind_icon = {
+                text = function (ctx)
+                  local icon = ctx.kind_icon
+                  if vim.tbl_contains({ 'Path' }, ctx.source_name) then
+                    local dev_icon, _ = require('nvim-web-devicons').get_icon(ctx.label)
+                    if dev_icon then
+                      icon = dev_icon
+                    end
+                  else
+                    icon = require('lspkind').symbolic(ctx.kind, { mode = 'symbol' })
+                  end
+
+                  return icon .. ctx.icon_gap
+                end
+              },
+            },
+          },
+        },
+      },
+      fuzzy = {
+        implementation = 'rust',
+      },
+    },
+  },
   {
     'nvim-telescope/telescope.nvim',
     branch = '0.1.x',
@@ -122,7 +202,6 @@ require('lazy').setup {
       { '<Leader>R', mode = { 'o', 'x' },      function() require('flash').treesitter_search() end },
     },
   },
-  { 'windwp/nvim-ts-autotag', config = true },
   {
     'stevearc/conform.nvim', opts = {
       formatters_by_ft = {
@@ -135,7 +214,7 @@ require('lazy').setup {
     branch = 'harpoon2',
     dependencies = { 'nvim-lua/plenary.nvim' },
   },
-  { 'github/copilot.vim' },
+  -- { 'github/copilot.vim' },
   {
     'mfussenegger/nvim-jdtls',
     init = function ()
@@ -156,29 +235,6 @@ require('lazy').setup {
 --------------------------------------------------
 --- Telescope.nvim
 --------------------------------------------------
-
---[[
-local previewers= require('telescope.previewers')
-local Job = require('plenary.job')
-
-local function new_maker (filepath, bufnr, opts)
-  filepath = vim.fn.expand(filepath)
-  Job:new {
-    command = 'file',
-    args = { '--mime-type', '-b', filepath },
-    on_exit = function (j)
-      local mime_type = vim.split(j:result()[1], '/')[1]
-      if mime_type == 'text' then
-        previewers.buffer_previewer_maker(filepath, bufnr, opts)
-      else
-        vim.schedule(function ()
-          vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'BINARY' })
-        end)
-      end
-    end
-  }:sync()
-end
-]] --
 
 local telescope = require('telescope')
 local actions = require('telescope.actions')
@@ -232,91 +288,6 @@ require('nvim-treesitter.configs').setup {
     },
   },
 }
-
-local luasnip = require('luasnip')
-require('luasnip.loaders.from_vscode').lazy_load {}
-
-local cmp = require('cmp')
-
-cmp.setup {
-  enabled = function()
-    -- keep command mode completion enabled when cursor is in a comment
-    if vim.api.nvim_get_mode().mode == 'c' then
-      return true
-    end
-
-    local context = require('cmp.config.context')
-    return not context.in_treesitter_capture('comment') and not context.in_syntax_group('Comment')
-  end,
-  window = {
-    -- completion = cmp.config.window.bordered(),
-    completion = {
-      winhighlight = 'Normal:Pmenu,FloatBorder:Pmenu,Search:None',
-      col_offset = -3,
-      side_padding = 0,
-    },
-  },
-  formatting = {
-    fields = { 'kind', 'abbr', 'menu' },
-    format = function(entry, vim_item)
-      local kind = require('lspkind').cmp_format { mode = 'symbol_text', maxwidth = 50 } (entry, vim_item)
-      local strings = vim.split(kind.kind, '%s', { trimempty = true })
-      kind.kind = ' ' .. (strings[1] or '') .. ' '
-      kind.menu = '    (' .. (strings[2] or '') .. ')'
-      return kind
-    end
-  },
-  sources = cmp.config.sources({
-    { name = 'nvim_lsp' },
-    { name = 'luasnip' },
-  }, { name = 'buffer' }),
-  snippet = {
-    expand = function(args)
-      -- vim.notify("expanding snippet in snippet.expand")
-      luasnip.lsp_expand(args.body)
-    end,
-  },
-  mapping = cmp.mapping.preset.insert {
-    -- TODO: conflicting mapping with node_incremental
-    ['<C-Space>'] = cmp.mapping.complete(),
-    ['<C-d>'] = cmp.mapping.scroll_docs(2),
-    ['<C-u>'] = cmp.mapping.scroll_docs(-2),
-    ['Up'] = cmp.mapping.select_prev_item(),
-    ['Down'] = cmp.mapping.select_next_item(),
-    ['<Tab>'] = cmp.mapping(function(fallback)
-      if not cmp.visible() then
-        fallback()
-      elseif luasnip.expand_or_jumpable() then
-        local active = cmp.get_selected_entry()
-        -- only allow expanding or jumping if a snippet is actually selected in the menu
-        -- luasnip.expandable() somehow returns true if there is _any_ snippet in the completion menu
-        if active or luasnip.jumpable() then
-          cmp.confirm { select = true }
-        else
-          cmp.select_next_item()
-        end
-      else
-        cmp.confirm { select = true }
-      end
-    end),
-    ['<S-Tab>'] = cmp.mapping(function(fallback)
-      if cmp.visible() then
-        cmp.select_prev_item()
-      elseif luasnip.locally_jumpable(-1) then
-        luasnip.jump(-1)
-      else
-        fallback()
-      end
-    end),
-  },
-}
-
--- automatically add parenthesis on tabcompletion
-local cmp_autopairs = require('nvim-autopairs.completion.cmp')
-cmp.event:on(
-  'confirm_done',
-  cmp_autopairs.on_confirm_done()
-)
 
 require('nvim-tree').setup {
   view = { preserve_window_proportions = false },
@@ -538,39 +509,13 @@ vim.api.nvim_create_autocmd('BufEnter', {
   end,
 })
 
-local home = os.getenv 'HOME'
-
-local workspace_path = home .. '/.local/share/nvim/jdtls_workspace/'
-local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ':p:h:t')
-local workspace_dir = workspace_path .. project_name
-
-local capabilities = require('cmp_nvim_lsp').default_capabilities(vim.lsp.protocol.make_client_capabilities())
-
 local function start_jdtls()
+  local workspace_path = home .. '/.local/share/nvim/jdtls_workspace/'
+  local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ':p:h:t')
+  local workspace_dir = workspace_path .. project_name
+
   local jdtls_opts = {
-    capabilities = capabilities,
-    -- cmd = {
-    --   'jdtls',
-    --   '--jvm-arg=-Declipse.application=org.eclipse.jdt.ls.core.id1',
-    --   '--jvm-arg=-Dosgi.bundles.defaultStartLevel=4',
-    --   '--jvm-arg=-Declipse.product=org.eclipse.jdt.ls.core.product',
-    --   '--jvm-arg=-Dlog.protocol=true',
-    --   '--jvm-arg=-Dlog.level=ALL',
-    --   '--jvm-arg=-Xmx1g',
-    --   '--jvm-arg=--add-modules=ALL-SYSTEM',
-    --   '--jvm-arg=--add-opens',
-    --   '--jvm-arg=java.base/java.util=ALL-UNNAMED',
-    --   '--jvm-arg=--add-opens',
-    --   '--jvm-arg=java.base/java.lang=ALL-UNNAMED',
-    --   '--jvm-arg=--add-modules=java.compiler',
-    --   '--jvm-arg=-javaagent:' .. home .. '/.local/share/nvim/mason/packages/jdtls/lombok.jar',
-    --   '--jvm-arg=-Dlombok.verbose=true',
-    --   -- '--jvm-arg=-Xbootclasspath/a:' .. home .. '/.local/share/nvim/mason/packages/jdtls/lombok.jar',
-    --   '-configuration',
-    --   home .. '/.local/share/nvim/mason/packages/jdtls/config_linux',
-    --   '-data',
-    --   workspace_dir,
-    -- },
+    capabilities = require('blink.cmp').get_lsp_capabilities(),
     cmd = {
       'java',
       '-Declipse.application=org.eclipse.jdt.ls.core.id1',
@@ -623,87 +568,3 @@ vim.api.nvim_create_autocmd('FileType', {
     start_jdtls()
   end,
 })
-
---------------------------------------------------
--- Lsp related
---------------------------------------------------
-
-local lspconfig = require('lspconfig')
-
--- setup manually installed lsp servers
-lspconfig.ols.setup {}
-if is_nixos then
-  lspconfig.lua_ls.setup {
-    settings = {
-      Lua = {
-        runtime = { version = 'LuaJIT' },
-        telemetry = { enable = false },
-        workspace = {
-          -- make the server aware of neovim runtime files
-          library = vim.api.nvim_get_runtime_file('', true),
-        },
-        diagnostics = {
-          globals = { 'vim' },
-        },
-      },
-    },
-  }
-end
-lspconfig.nixd.setup {
-  settings = {
-    nixd = {
-      nixpkgs = { expr = 'import <nixpkgs> {}' },
-      formatting = { command = { 'nixfmt-rfc-style' } },
-      options = {
-        home_manager = {
-          expr = '(builtins.getFlake "' .. home .. '/.config/home-manager/flake.nix").homeConfigurations.cluster2.options',
-        },
-      },
-    },
-  },
-}
-
-local handlers = {
-  function(server_name)
-    lspconfig[server_name].setup {
-      capabilities = capabilities,
-    }
-  end,
-
-  -- ['lua_ls'] = function()
-  --   lspconfig.lua_ls.setup {
-  --     settings = {
-  --       Lua = {
-  --         runtime = { version = 'LuaJIT' },
-  --         telemetry = { enable = false },
-  --         workspace = {
-  --           -- make the server aware of neovim runtime files
-  --           library = vim.api.nvim_get_runtime_file('', true),
-  --         },
-  --         diagnostics = {
-  --           globals = { 'vim' },
-  --         },
-  --       },
-      -- },
-    -- }
-  -- end
-}
-
-require('mason-lspconfig').setup {
-  automatic_installation = true,
-  handlers = handlers,
-}
-
---[[
-lspconfig.ols.setup {}
-lspconfig.pyright.setup {}
-lspconfig.clangd.setup {
-}
-lspconfig.tsserver.setup {
-  init_options = {
-    preferences = {
-      includeInlayParameterNameHints = 'all',
-    },
-  },
-}
---]]
