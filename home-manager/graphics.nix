@@ -4,7 +4,6 @@
   services.dunst.enable = true;
   services.dunst.package = pkgs.dunst.override { withWayland = false; };
   services.dunst.settings = {
-    # definitely not copied from some random config
     global = {
       # Display
       monitor = 0;
@@ -25,14 +24,14 @@
       progress_bar_min_width = 150;
       progress_bar_max_width = 300;
       
-      # Appearance - Increased transparency for more glass-like effect
-      transparency = 35;  # Increased from 15 to 35 for more transparency
+      # Appearance
+      transparency = 15;
       separator_height = 2;
       padding = 16;
       horizontal_padding = 20;
       text_icon_padding = 16;
       frame_width = 1;
-      frame_color = "#ffffff20";  # More subtle frame with transparency
+      frame_color = "#4a5568";
       separator_color = "frame";
       sort = true;
       idle_threshold = 120;
@@ -83,72 +82,71 @@
     };
 
     urgency_low = {
-      # More transparent backgrounds for glass effect
-      background = "#1a202c80";  # Added alpha channel for transparency
+      # Low priority notifications (similar to macOS subtle notifications)
+      background = "#2d3748";
       foreground = "#e2e8f0";
       timeout = 5;
-      frame_color = "#ffffff15";
+      frame_color = "#4a5568";
     };
     
     urgency_normal = {
-      # Main macOS-style with increased transparency
-      background = "#1a202c85";  # More transparent background
+      # Normal notifications (main macOS style)
+      background = "#2d3748";
       foreground = "#ffffff";
       timeout = 8;
-      frame_color = "#ffffff20";
+      frame_color = "#4a5568";
     };
     
     urgency_critical = {
-      # Critical notifications with transparency
-      background = "#2d1b1b90";  # Slightly red-tinted transparent background
+      # Critical notifications (more prominent)
+      background = "#2d3748";
       foreground = "#ffffff";
       timeout = 0;
-      frame_color = "#e53e3e60";
+      frame_color = "#e53e3e";
     };
 
     # Custom rules for specific applications
     spotify = {
       appname = "Spotify";
-      background = "#1db95480";  # Added transparency
+      background = "#1db954";
       foreground = "#ffffff";
-      frame_color = "#1ed76040";
+      frame_color = "#1ed760";
       timeout = 6;
     };
 
     discord = {
       appname = "Discord";
-      background = "#5865f280";  # Added transparency
+      background = "#5865f2";
       foreground = "#ffffff";
-      frame_color = "#7289da40";
+      frame_color = "#7289da";
       timeout = 8;
     };
 
     telegram = {
       appname = "Telegram";
-      background = "#0088cc80";  # Added transparency
+      background = "#0088cc";
       foreground = "#ffffff";
-      frame_color = "#229ed940";
+      frame_color = "#229ed9";
       timeout = 8;
     };
 
-    # Call-like notifications
+    # Call-like notifications (inspired by your image)
     call_notification = {
       summary = "*call*";
-      background = "#1a202c85";
+      background = "#2d3748";
       foreground = "#ffffff";
-      frame_color = "#48bb7840";
+      frame_color = "#48bb78";
       timeout = 0;
       format = "<b>📞 %s</b>\\n%b";
     };
     
     video_call = {
       summary = "*video*";
-      background = "#1a202c85";
+      background = "#2d3748";
       foreground = "#ffffff";
-      frame_color = "#4299e140";
+      frame_color = "#4299e1";
       timeout = 0;
       format = "<b>📹 %s</b>\\n%b";
     };
   };
-
 }
