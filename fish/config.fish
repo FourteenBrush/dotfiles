@@ -19,6 +19,7 @@ set -Ux ODIN_ROOT (odin root)
 set -x MANPAGER "nvim +Man!"
 
 alias b bluetoothctl
+alias p3 python3
 abbr gc "git commit"
 abbr gcm 'git commit -m "'
 
