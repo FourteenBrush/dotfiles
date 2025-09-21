@@ -1,0 +1,86 @@
+/* @define-color background #332E41; */
+@define-color background rgba(30, 30, 30, 0.9);
+@define-color border rgba(255, 255, 255, 0.1);
+
+* {
+  border-radius: 0;
+  font-family: "Jetbrains Mono";
+  font-size: 13px;
+  /* to get rid of warning "requested height is less than minimum 45" */
+  /* for whatever reason that occurs */
+  min-height: 20px;
+}
+
+window#waybar {
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+tooltip {
+	background: #1E1E28;
+	border-radius: 15px;
+	border-width: 2px;
+	border-style: solid;
+	border-color: #a4b9ef;
+}
+
+#workspaces, #network, #pulseaudio, #bluetooth, #battery, #clock {
+	padding: 0px 10px;
+  background: @background;
+  border-width: 1px 0;
+  border-style: solid;
+  border-color: @border;
+  margin-top: 5px;
+  /* to compensate with hyprland padding */
+  margin-bottom: 0px;
+}
+
+#network {
+  padding-left: 15px;
+  padding-right: 2px;
+  border-width: 1px 0 1px 1px;
+  border-radius: 7px 0px 0px 7px;
+}
+
+#clock {
+  padding-right: 15px;
+  margin-right: 5px;
+  border-radius: 0px 7px 7px 0px;
+  border-width: 1px 1px 1px 0;
+}
+
+#workspaces {
+  margin-left: 5px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  border-radius: 7px;
+  border-width: 1px;
+}
+
+#workspaces label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#workspaces button {
+  padding: 5px 10px;
+  min-width: 0;
+  color: #DADAE8;
+}
+
+#workspaces button.active {
+  color: #89B283;
+}
+
+/* workspace that has windows but not currently active */
+#workspaces button:not(.empty):not(.active) {
+  color: #A4B9EF;
+}
+
+#workspaces button:hover {
+  background: #332e41;
+  border-color: #332e41;
+  border-radius: 6px;
+	color: #A4B9EF;
+}
