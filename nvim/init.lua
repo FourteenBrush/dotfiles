@@ -34,6 +34,7 @@ opt.ignorecase              = true
 opt.smartcase               = true
 -- persistent undo
 opt.undofile                = true
+-- opt.winborder               = 'rounded'
 
 --------------------------------------------------
 -- Plugins
@@ -58,9 +59,18 @@ opt.rtp:prepend(lazypath)
 local is_nixos = vim.fn.isdirectory('/nix/store')
 local home = os.getenv 'HOME'
 
-local lsp_clients = { 'clangd', 'pyright', 'zls', 'typescript-language-server', 'bashls', 'prismals', 'nixd', 'jdtls' }
+local lsp_clients = { 'pyright', 'zls', 'typescript-language-server', 'bashls', 'prismals', 'nixd', 'jdtls', 'dartls' }
+
+-- filter out problematic lsp servers, which usually package themselves as a .so; assume the wrapped version
+-- is used instead on nixos
+if is_nixos == 0 then
+  table.insert(lsp_clients, {'lua_ls', 'clangd'})
+end
+
 local lsp_configs = {
   ols = {},
+  clangd = {},
+  pyright = {},
   nixd = {
     settings = {
       nixd = {
@@ -90,12 +100,6 @@ local lsp_configs = {
     },
   },
 }
-
--- filter out problematic lsp servers, which usually package themselves as a .so; assume the wrapped version
--- is used instead on nixos
-if is_nixos == 0 then
-  table.insert(lsp_clients, 'lua_ls')
-end
 
 local lombok_path = vim.fn.stdpath('data') .. '/mason/packages/jdtls/lombok-patched.jar'
 
@@ -138,6 +142,7 @@ require('lazy').setup {
         ['<C-d>'] = { 'scroll_documentation_down' },
       },
       signature = { enabled = true },
+      fuzzy = { implementation = 'rust' },
       completion = {
         documentation = { auto_show = true },
         -- https://cmp.saghen.dev/recipes.html#nvim-web-devicons-lspkind
@@ -162,9 +167,6 @@ require('lazy').setup {
             },
           },
         },
-      },
-      fuzzy = {
-        implementation = 'rust',
       },
     },
   },
@@ -214,7 +216,7 @@ require('lazy').setup {
     branch = 'harpoon2',
     dependencies = { 'nvim-lua/plenary.nvim' },
   },
-  -- { 'github/copilot.vim' },
+  { 'github/copilot.vim' },
   {
     'mfussenegger/nvim-jdtls',
     init = function ()
@@ -230,7 +232,28 @@ require('lazy').setup {
       end
     end
   },
+  { 'echasnovski/mini.pairs', version = false, config = true },
+  {
+    'nvim-flutter/flutter-tools.nvim',
+    lazy = false,
+    dependencies = {
+        'nvim-lua/plenary.nvim',
+        'stevearc/dressing.nvim', -- optional for vim.ui.select
+    },
+    config = true,
+  },
+  -- {
+  --   'felipeagc/fleet-theme-nvim',
+  --   config = function() vim.cmd.colorscheme('fleet') end,
+  -- }
 }
+
+-- highlights for blink.nvim completion menu
+vim.api.nvim_set_hl(0, 'BlinkCmpKindFunction', { fg = '#FF5555' })
+vim.api.nvim_set_hl(0, 'BlinkCmpKindVariable', { fg = '#c87f93' })
+vim.api.nvim_set_hl(0, 'BlinkCmpKindClass', { fg = '#FFFF55' })
+vim.api.nvim_set_hl(0, 'BlinkCmpKindKeyword', { fg = '#c9bc99' })
+vim.api.nvim_set_hl(0, 'BlinkCmpKindModule', { fg = '#eeb530' })
 
 --------------------------------------------------
 --- Telescope.nvim
@@ -474,6 +497,16 @@ vim.api.nvim_create_autocmd('LspAttach', {
     local opts = { buffer = args.buf }
 
     -- vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
+    -- show diagnostics in new virtual lines, change to 'virtual_text' to show them inline
+    vim.diagnostic.config({ virtual_lines = true })
+
+    -- for when not using cmp.nvim, or blink or something similar
+    -- local client = vim.lsp.get_client_by_id(args.data.client_id)
+    -- if client == nil then return end
+    --
+    -- if client:supports_method('textDocument/completion') then
+    --   vim.lsp.completion.enable(true, client.id, args.buf, { autotrigger = true })
+    -- end
 
     -- buffer local mappings
     keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
@@ -481,7 +514,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
     keymap.set('n', 'gi', vim.lsp.buf.implementation, opts)
     keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, opts)
     keymap.set('n', '<C-;>', vim.lsp.buf.code_action, opts)
-    keymap.set('n', 'gr', require('nvchad.lsp.renamer'), opts)
+    keymap.set('n', 'grn', require('nvchad.lsp.renamer'), opts) -- nvim 0.11 override
     keymap.set('n', 'gu', vim.lsp.buf.references, opts)
     keymap.set('n', '<leader>fd', function()
       require('conform').format {
@@ -496,7 +529,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
 
 vim.api.nvim_create_autocmd('BufEnter', {
   group = lspgroup,
-  pattern = { '*.html', '*.xhtml', '*.js', '*.jsx', '*.ts', '*.tsx', '*.css', '*.scss', '*.lua', '*.json', '*.nix', '*.py' },
+  pattern = { '*.html', '*.xhtml', '*.js', '*.jsx', '*.ts', '*.tsx', '*.css', '*.scss', '*.lua', '*.json', '*.nix', '*.py', '*.dart' },
   callback = function(event)
     local formatters_for_buf = require('conform').list_formatters(event.buf)
     if #formatters_for_buf > 0 then
