@@ -1,0 +1,78 @@
+// https://github.com/lokesh-krishna/dotfiles/tree/main/catppuccin
+
+{
+  "position": "top",
+  "modules-left": ["hyprland/workspaces"],
+  "modules-right": ["network", "pulseaudio", "bluetooth", "battery", "clock"],
+  // Modules configuration
+  "hyprland/workspaces": {
+    "format": "{name}",
+    "on-click": "activate",
+    "sort-by-number": true,
+    "show-special": true,
+    // "move-to-cursor": true,
+    // "all-outputs": true,
+    "persistent-workspaces": {
+      "eDP-1": [ 1, 2, 3, 4, 5 ],
+      "DP-2": [ 6, 7, 8, 9, 10 ],
+      "*": 5, // 5 workspaces by default on every monitor
+    }
+  },
+  "clock": {
+    "format": "<span foreground='#C6AAE8'>  </span>{:%H:%M}",
+    "tooltip-format": "<big>{:%a %e %B %Y}</big>\n<tt><small>{calendar}</small></tt>"
+  },
+  "battery": {
+    "states": {
+      "warning": 30,
+      "critical": 15
+    },
+    "format-icons": [
+      "󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"
+	],
+    "format": "<span size='13000' foreground='#B1E3AD'>{icon}</span> {capacity}%",
+    "format-charging": " {capacity}%",
+
+    "format-warning": "<span size='13000' foreground='#B1E3AD'>{icon}</span> {capacity}%",
+    "format-critical": "<span size='13000' foreground='#E38C8F'>{icon}</span> {capacity}%",
+    // "format-charging": "<span size='13000' foreground='#B1E3AD'> </span>{capacity}%",
+    "format-plugged": "<span size='13000' foreground='#B1E3AD'> </span>{capacity}%",
+    "format-alt": "<span size='13000' foreground='#B1E3AD'>{icon}</span> {time}",
+    //"format-icons": ["", "", "", "", ""],
+    "format-full": "{icon} Full",
+    "format-full": "<span size='13000' foreground='#B1E3AD'>{icon} </span>Full",
+    // "tooltip-format": "{time}",
+    "format-time": "{H}h {M}min"
+  },
+  "network": {
+    "format-wifi": "<span size='13000' foreground='#F2CECF'>  </span>{essid}",
+    "format-ethernet": "<span size='13000' foreground='#F2CECF'> </span> {ifname}",
+    "tooltip-format-ethernet": "<span size='13000' foreground='#F2CECF'> </span> {ifname}: {ipaddr}",
+    "format-linked": "{ifname} (No IP) ",
+    "format-disconnected": "<span size='13000' foreground='#F2CECF'> </span>Disconnected",
+    "tooltip-format-wifi": "Signal Strenght: {signalStrength}% ({frequency} GHz)"
+  },
+  "bluetooth": {
+    "format": "󰂯 {device_alias}",
+    "format-disabled": "",
+    "format-off": "",
+    "format-no-controller": "",
+    "tooltip-format-connected": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
+	"tooltip-format-enumerate-connected": "{device_alias}\t{device_address}",
+  },
+  "pulseaudio": {
+    "on-click": "amixer set Master toggle --quiet",
+    "format": "<span size='13000' foreground='#EBDDAA'>{icon} </span> {volume}%",
+    "format-muted": "<span size='14000' foreground='#EBDDAA'> </span>",
+    "format-icons": {
+      "headphone": "",
+      "hands-free": "",
+      "headset": "",
+      "phone": "",
+      "portable": "",
+      "car": "",
+      "default": ["", ""]
+    }
+  }
+}
+
