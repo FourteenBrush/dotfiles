@@ -1,3 +1,27 @@
+# copied from https://github.com/fish-shell/fish-shell/blob/master/share/functions/fish_default_mode_prompt.fish
+function fish_mode_prompt
+    set_color --bold "#D4A356"
+
+    # Do nothing if not in vi mode
+    if test "$fish_key_bindings" = fish_vi_key_bindings
+        or test "$fish_key_bindings" = fish_hybrid_key_bindings
+        switch $fish_bind_mode
+            case default
+                echo '[N]'
+            case insert
+                echo '[I]'
+            case replace_one
+                echo '[R]'
+            case replace
+                echo '[R]'
+            case visual
+                echo '[V]'
+        end
+        set_color normal
+        echo -n ' '
+    end
+end
+
 function fish_prompt
     set -l __last_command_exit_status $status
 
@@ -64,7 +88,7 @@ function fish_prompt
 
     set -l cyan (set_color -o cyan)
     set -l yellow (set_color -o yellow)
-    set -l red (set_color -o red)
+    set -l red (set_color -o "#DF655F")
     set -l green (set_color -o green)
     set -l blue (set_color -o blue)
     set -l normal (set_color normal)
@@ -79,7 +103,7 @@ function fish_prompt
         set arrow "$arrow_color# "
     end
 
-    set -l cwd $cyan(basename (prompt_pwd))
+    set -l cwd $red(basename (prompt_pwd))
 
     set -l repo_info
     if set -l repo_type (_repo_type)
@@ -92,5 +116,7 @@ function fish_prompt
         end
     end
 
-    echo -n -s $arrow ' '$cwd $repo_info $normal ' '$nix_shell_info ' '
+    echo -n -s $cwd ' '
+    # echo -n -s $arrow ' '$cwd $repo_info $normal ' '$nix_shell_info ' '
 end
+
