@@ -2,6 +2,12 @@ if status is-interactive
     # Commands to run in interactive sessions can go here
 end
 
+if not set -q SSH_AUTH_SOCK or not test -e $SSH_AUTH_SOCK
+    eval (ssh-agent -c) > /dev/null
+    ssh-add ~/.ssh/id_ed25519_git_personal_auth    2>/dev/null
+    ssh-add ~/.ssh/id_ed25519_git_personal_signing 2>/dev/null
+end
+
 fish_add_path /bin/nvim/bin
 fish_add_path /usr/local/bin/visualvm/bin
 fish_add_path /usr/local/bin/odin
