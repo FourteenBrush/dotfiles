@@ -8,6 +8,7 @@ vim.g.netrw_sizestyle = "H"
 
 local opt = vim.opt
 opt.syntax = "enable"
+opt.termguicolors = true
 opt.background = "dark"
 opt.mouse = "a"
 opt.number = true
@@ -33,6 +34,15 @@ vim.api.nvim_create_autocmd("FileType", {
     optl.shiftwidth = 2
     optl.softtabstop = 2
   end,
+})
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "json",
+  callback = function()
+    -- theoretically comments are not supported in .json files, but just
+    -- use "//" to comment regardless
+    vim.bo.commentstring = "// %s"
+  end
 })
 
 opt.smartcase = true
@@ -72,7 +82,7 @@ require("mini.deps").setup {
 
 local add = MiniDeps.add
 
-add({ source = "nvim-mini/mini.pairs", checkout = "stable" })
+-- add({ source = "nvim-mini/mini.pairs", checkout = "stable" })
 require("mini.pairs").setup {}
 require("mini.icons").setup {}
 MiniIcons.tweak_lsp_kind()
@@ -95,6 +105,9 @@ require("fff").setup {
       return vpwidth > FLEX_BREAKPOINT_COLS and "right" or "top"
     end,
   },
+  keymaps = {
+    move_up = { "<Up>", "<C-u>" },
+  },
 }
 
 add({
@@ -106,8 +119,8 @@ require("telescope").setup {
   defaults = {
     file_ignore_patterns = { "node_modules", ".git/" },
     mappings = {
-      -- clear prompt on ctrl-u
-      i = { ["<C-u>"] = false }
+      -- clear prompt on ctrl-c
+      i = { ["<C-c>"] = false }
     },
     -- dynamically switch between horizontal and vertical layout
     layout_strategy = "flex",
@@ -118,18 +131,34 @@ require("telescope").setup {
     },
   },
 }
+add("norcalli/nvim-colorizer.lua")
+require("colorizer").setup {
+  "css", "javascript", "typescript", "javascriptreact", "typescriptreact",
+}
 
 --------------------
 --- Colorscheme
 --------------------
 
 add("scottmckendry/cyberdream.nvim")
+local comp_menu_bg = "#212426"
 require("cyberdream").setup {
   saturation = 0.9,
   highlights = {
     -- make line number of current line more visible
     CursorLineNr = { fg = "#F8FAFC" },
-    StatusLine = { bg = "#151618" }, -- horizontal split separator essentially
+    -- horizontal split separator essentially
+    StatusLine = { bg = "#151618" },
+
+    BlinkCmpMenu = { bg = comp_menu_bg },
+    BlinkCmpMenuItem = { bg = comp_menu_bg },
+    BlinkCmpLabel = { bg = comp_menu_bg },
+    BlinkCmpSignatureHelp = { bg = "#2a2e30" },
+    BlinkCmpDoc = { bg = comp_menu_bg },
+    BlinkCmpLabelDetail = { bg = comp_menu_bg },
+    BlinkCmpLabelDescription = { bg = comp_menu_bg },
+    BlinkCmpMenuBorder = { fg = "#3E4C6D" },
+
     -- keyword.type is italic for whatever reason, override it
     ["@keyword.type"] = { fg = "#f6bb66", italic = false },
   },
@@ -266,28 +295,36 @@ require("blink.cmp").setup {
     documentation = {
       auto_show = true,
       auto_show_delay_ms = 400,
+      window = { border = "single" },
     },
     list = { selection = { auto_insert = false } },
     accept = { auto_brackets = { enabled = true } },
     menu = {
+      border = "single",
       draw = {
+        -- align_to = "label",
         components = {
-          kind_icon = {
-            text = function(ctx)
-              local kind_icon, _, _ = require("mini.icons").get("lsp", ctx.kind)
-              return kind_icon .. ctx.icon_gap
-            end,
-            highlight = function(ctx)
-              local _, hl, _ = require("mini.icons").get("lsp", ctx.kind)
-              return hl
-            end,
+          label = {
+            -- ensure text of completion item doesn't get cut off, as it
+            -- does not seem to occupy the available width by default
+            width = { fill = true, max = 80 },
           },
-          kind = {
-            highlight = function(ctx)
-              local _, hl, _ = require("mini.icons").get("lsp", ctx.kind)
-              return hl
-            end,
-          }
+        --   kind_icon = {
+        --     text = function(ctx)
+        --       local kind_icon, _, _ = require("mini.icons").get("lsp", ctx.kind)
+        --       return kind_icon .. ctx.icon_gap
+        --     end,
+        --     highlight = function(ctx)
+        --       local _, hl, _ = require("mini.icons").get("lsp", ctx.kind)
+        --       return hl
+        --     end,
+        --   },
+        --   kind = {
+        --     highlight = function(ctx)
+        --       local _, hl, _ = require("mini.icons").get("lsp", ctx.kind)
+        --       return hl
+        --     end,
+        --   }
         }
       }
     }
