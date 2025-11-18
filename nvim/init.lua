@@ -65,7 +65,7 @@ local path_package = vim.fn.stdpath("data") .. "/site/"
 local mini_path = path_package .. "pack/deps/start/mini.nvim"
 --- @diagnostic disable-next-line: undefined-field
 if not vim.loop.fs_stat(mini_path) then
-  vim.cmd.echo("Installing mini.nvim")
+  vim.cmd("echo 'Installing mini.nvim'")
   local clone_cmd = {
     "git", "clone", "--filter=blob:none",
     "https://github.com/nvim-mini/mini.nvim", mini_path
@@ -73,7 +73,7 @@ if not vim.loop.fs_stat(mini_path) then
   vim.fn.system(clone_cmd)
   vim.cmd.packadd("mini.nvim")
   vim.cmd.helptags("ALL")
-  vim.cmd.echo("Installed mini.nvim")
+  vim.cmd("echo 'Installed mini.nvim'")
 end
 
 require("mini.deps").setup {
