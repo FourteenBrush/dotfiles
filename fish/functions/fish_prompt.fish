@@ -90,7 +90,7 @@ function fish_prompt
     set -l yellow (set_color -o yellow)
     set -l red (set_color -o "#DF655F")
     set -l green (set_color -o green)
-    set -l blue (set_color -o blue)
+    set -l blue (set_color -o "#458588")
     set -l normal (set_color normal)
 
     set -l arrow_color "$green"
@@ -101,9 +101,10 @@ function fish_prompt
     set -l arrow "$arrow_color➜ "
     if fish_is_root_user
         set arrow "$arrow_color# "
+	set cwd "$cwd #"
     end
 
-    set -l cwd $red(basename (prompt_pwd))
+    set -l cwd $red(prompt_pwd --dir-length=0)
 
     set -l repo_info
     if set -l repo_type (_repo_type)
@@ -116,6 +117,7 @@ function fish_prompt
         end
     end
 
-    echo -n -s $cwd ' '
+    echo -n -s (prompt_login) ' ' $cwd $repo_info $normal ' '$nix_shell_info ' '
     # echo -n -s $arrow ' '$cwd $repo_info $normal ' '$nix_shell_info ' '
 end
+
