@@ -27,7 +27,7 @@ opt.tabstop = 4
 opt.shiftwidth = 4
 
 vim.api.nvim_create_autocmd("FileType", {
-  pattern = { 'html', 'xhtml', 'js', 'jsx', 'ts', 'tsx', 'css', 'scss', 'lua', 'json', 'nix', 'py', 'dart', 'fish', 'sh' },
+  pattern = { "html", "xhtml", "js", "jsx", "ts", "typescriptreact", "css", "scss", "lua", "json", "nix", "py", "dart", "fish", "sh" },
   callback = function()
     local optl = vim.opt_local
     optl.tabstop = 2
@@ -185,7 +185,7 @@ map("n", "<Leader>gc", telescope.git_commits)
 map("n", "<Leader>gd", telescope.git_status)
 
 map("n", "<Esc>", "<cmd>noh<cr>")
-map("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal node" })
+map("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 
 --------------------
 --- LSP
@@ -197,11 +197,12 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
     map("n", "gd", vim.lsp.buf.definition)
     map("n", "gD", vim.lsp.buf.declaration)
+    map("n", "gi", vim.lsp.buf.implementation)
     map("n", "<C-;>", vim.lsp.buf.code_action)
   end,
 })
 
-add("https://github.com/nvim-treesitter/nvim-treesitter")
+add("nvim-treesitter/nvim-treesitter")
 --- @diagnostic disable-next-line: missing-fields
 require("nvim-treesitter.configs").setup {
   ensure_installed = {
@@ -219,14 +220,44 @@ add("mason-org/mason-lspconfig.nvim")
 -- NOTE: dartls and nixd are gone from the registry for some reason
 local lsp_clients = { "pyright", "zls", "ts_ls", "bashls", "prismals", "jdtls" }
 local is_nixos = vim.fn.isdirectory("/nix/store")
+local is_windows = vim.fn.has("win32") and true or false
+
 local home = os.getenv("HOME")
+local user = os.getenv("USER")
 -- filter out problematic lsp servers, which usually package themselves as a .so; assume the wrapped version
 -- is used instead on nixos
 if is_nixos == 0 then
   table.insert(lsp_clients, { "lua_ls", "clangd" })
 end
 
+local jdtls_root_markers = { "gradlew", "mvnw", ".git" }
+local jdtls_folder = vim.fn.expand("$MASON/packages/jdtls")
+
 local lsp_configs = {
+  -- https://github.com/neovim/nvim-lspconfig/blob/master/lua/lspconfig/configs/jdtls.lua
+  jdtls = {
+    cmd = {
+      "java",
+      "-Declipse.application=org.eclipse.jdt.ls.core.id1",
+      "-Dosgi.bundles.defaultStartLevel=4",
+      "-Declipse.product=org.eclipse.jdt.ls.core.product",
+      "-Dlog.protocol=true",
+      -- "-Dlog.level=ALL",
+      "-Xmx4g",
+      "--add-modules=ALL-SYSTEM",
+      "--add-opens", "java.base/java.util=ALL-UNNAMED",
+      "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+      "-javaagent:" .. jdtls_folder .. "/lombok.jar",
+
+      -- The jar file is located where jdtls was installed
+      "-jar", vim.fn.glob(jdtls_folder .. "/plugins/org.eclipse.equinox.launcher_*.jar"),
+
+      -- The configuration for jdtls is also placed where jdtls was installed. This will
+      -- need to be updated depending on your environment
+      "-configuration", jdtls_folder .. (is_windows and "/config_win" or "/config_linux"),
+      "-data", jdtls_folder .. "/workspace",
+    },
+  },
   nixd = {
     settings = {
       nixd = {
@@ -234,7 +265,7 @@ local lsp_configs = {
         formatting = { command = { 'nixfmt-rfc-style' } },
         options = {
           home_manager = {
-            expr = '(builtins.getFlake "' .. home .. '/.config/home-manager/flake.nix").homeConfigurations.cluster2.options',
+            expr = '(builtins.getFlake "' .. home .. '/.config/home-manager/flake.nix").homeConfigurations.' .. user .. '.options',
           },
         },
       },
