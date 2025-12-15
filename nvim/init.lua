@@ -210,6 +210,8 @@ require("nvim-treesitter.configs").setup {
     "angular", "rust", "python", "javascript", "diff", "zig", "go", "bash", "xml", "typescript",
     "css", "fish", "make", "tsx", "graphql", "prisma", "terraform", "yaml",
   },
+  -- automatically install parsers when entering buffer
+  auto_install = true,
   highlight = { enable = true },
   indent = { enable = true },
 }
@@ -227,10 +229,13 @@ local user = os.getenv("USER")
 -- filter out problematic lsp servers, which usually package themselves as a .so; assume the wrapped version
 -- is used instead on nixos
 if is_nixos == 0 then
-  table.insert(lsp_clients, { "lua_ls", "clangd" })
+  lsp_clients = { "lua_ls", "clangd", table.unpack(lsp_clients) }
 end
 
-local jdtls_root_markers = { "gradlew", "mvnw", ".git" }
+-- lsp registries
+require("mason").setup {}
+
+-- NOTE: requires mason to be setup first, in order to populate env var $MASON
 local jdtls_folder = vim.fn.expand("$MASON/packages/jdtls")
 
 local lsp_configs = {
@@ -288,8 +293,6 @@ local lsp_configs = {
   },
 }
 
--- lsp registries
-require("mason").setup {}
 require("mason-lspconfig").setup {
   ensure_installed = lsp_clients,
   automatic_installation = true,
