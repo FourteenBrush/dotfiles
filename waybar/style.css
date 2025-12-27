@@ -4,7 +4,7 @@
 
 * {
   border-radius: 0;
-  font-family: "Jetbrains Mono";
+  font-family: "JetBrainsMono-Regular";
   font-size: 13px;
   /* to get rid of warning "requested height is less than minimum 45" */
   /* for whatever reason that occurs */
@@ -25,7 +25,7 @@ tooltip {
 	border-color: #a4b9ef;
 }
 
-#workspaces, #network, #pulseaudio, #bluetooth, #battery, #clock {
+#workspaces, #network, #tray, #pulseaudio, #bluetooth, #battery, #clock {
 	padding: 0px 10px;
   background: @background;
   border-width: 1px 0;
