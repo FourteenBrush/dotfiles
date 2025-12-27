@@ -3,7 +3,7 @@
 {
   "position": "top",
   "modules-left": ["hyprland/workspaces"],
-  "modules-right": ["network", "pulseaudio", "bluetooth", "battery", "clock"],
+  "modules-right": ["network", "tray", "pulseaudio", "bluetooth", "battery", "clock"],
   // Modules configuration
   "hyprland/workspaces": {
     "format": "{name}",
@@ -28,7 +28,7 @@
       "critical": 15
     },
     "format-icons": [
-      "󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"
+	    "󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"
 	],
     "format": "<span size='13000' foreground='#B1E3AD'>{icon}</span> {capacity}%",
     "format-charging": " {capacity}%",
@@ -75,4 +75,3 @@
     }
   }
 }
-
