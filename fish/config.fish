@@ -6,6 +6,9 @@ if not set -q SSH_AUTH_SOCK or not test -e $SSH_AUTH_SOCK
   eval (ssh-agent -c) > /dev/null
   ssh-add ~/.ssh/id_ed25519_git_personal_auth    2>/dev/null
   ssh-add ~/.ssh/id_ed25519_git_personal_signing 2>/dev/null
+  ssh-add ~/.ssh/id_ed25519_git_college_auth     2>/dev/null
+  ssh-add ~/.ssh/id_ed25519_git_college_signing  2>/dev/null
+  ssh-add ~/.ssh/id_ed25519_ssh_auth             2>/dev/null
 end
 
 if test $XDG_SESSION_TYPE = "wayland"
@@ -18,22 +21,31 @@ set fish_greeting
 set -Ux SUDO_EDITOR nvim
 set -Ux EDITOR nvim
 set -x MANPAGER "nvim +Man!"
+set -x ODIN_ROOT (odin root)
 
-set -l java_home /usr/lib64/jvm/java-21-openjdk-21
+set -l java_home /usr/lib64/jvm/java-25-openjdk-25/
 if test -d $java_home
   set -x JAVA_HOME $java_home
 end
 set -x ANDROID_HOME ~/Android/Sdk
 
+# add programs installed with 'nix profile add' to PATH
+fish_add_path ~/.nix-profile/bin
+
 fish_vi_key_bindings
 zoxide init fish | source
+devbox completion fish | source
 
 alias b bluetoothctl
 alias p3 python3
 alias hyprpicker="hyprpicker | tail -1 | tr -d '\n' | wl-copy"
+alias bat "bat --theme TwoDark --no-paging"
+
+abbr zy "sudo zypper --no-refresh --non-interactive in"
 
 abbr gc "git commit"
 abbr gcm 'git commit -m "'
+abbr gs 'git status'
 
 function font-picker
   set -l font (fc-list : family | sort -u | fzf)
