@@ -12,6 +12,8 @@ opt.termguicolors = true
 opt.background = "dark"
 opt.mouse = "a"
 opt.number = true
+-- open new windows on the right of the current one (also implicitly switches to it)
+opt.splitright = true
 
 opt.cursorline = true -- highlight current line
 opt.cursorlineopt = "number" -- only show number
@@ -27,7 +29,10 @@ opt.tabstop = 4
 opt.shiftwidth = 4
 
 vim.api.nvim_create_autocmd("FileType", {
-  pattern = { "html", "xhtml", "js", "jsx", "ts", "typescriptreact", "css", "scss", "lua", "json", "nix", "py", "dart", "fish", "sh" },
+  pattern = {
+    "html", "xhtml", "js", "jsx", "ts", "typescriptreact", "gleam",
+    "css", "scss", "lua", "json", "nix", "py", "dart", "fish", "sh", "qml",
+  },
   callback = function()
     local optl = vim.opt_local
     optl.tabstop = 2
@@ -44,6 +49,10 @@ vim.api.nvim_create_autocmd("FileType", {
     vim.bo.commentstring = "// %s"
   end
 })
+
+vim.api.nvim_create_user_command("ToggleVirtualLines", function ()
+  vim.diagnostic.config { virtual_lines = not vim.diagnostic.config().virtual_lines }
+end, {})
 
 opt.smartcase = true
 opt.linebreak = true
@@ -98,9 +107,11 @@ add({
 })
 
 -- move from vertical to horizontal layout at >= x cols
-local FLEX_BREAKPOINT_COLS = 170
+local FLEX_BREAKPOINT_COLS = 190
 require("fff").setup {
+  lazy_sync = false,
   layout = {
+    -- width = 0.85,
     preview_position = function(vpwidth, _)
       return vpwidth > FLEX_BREAKPOINT_COLS and "right" or "top"
     end,
@@ -112,7 +123,7 @@ require("fff").setup {
 
 add({
   source = "nvim-telescope/telescope.nvim",
-  checkout = "0.1.8",
+  -- checkout = "0.1.8",
   depends = { "nvim-lua/plenary.nvim" },
 })
 require("telescope").setup {
@@ -125,15 +136,23 @@ require("telescope").setup {
     -- dynamically switch between horizontal and vertical layout
     layout_strategy = "flex",
     layout_config = {
+      width = 0.85, -- default seems to be 80%
       flex = {
         flip_columns = FLEX_BREAKPOINT_COLS,
       },
     },
   },
 }
-add("norcalli/nvim-colorizer.lua")
+add("catgoose/nvim-colorizer.lua")
 require("colorizer").setup {
-  "css", "javascript", "typescript", "javascriptreact", "typescriptreact",
+  options = {
+    parsers = { css = true },
+    display = {
+      mode = "virtualtext", -- display small cube next to line
+      virtualtext = { position = "after" },
+    },
+  },
+  -- "css", "javascript", "typescript", "javascriptreact", "typescriptreact",
 }
 
 --------------------
@@ -175,7 +194,7 @@ map("n", "<Leader>ff", require("fff").find_files)
 map("n", "<C-p>", require("fff").find_files) -- mimic Zed project search
 
 map("n", "g/", telescope.live_grep) -- mimic Zed grep, requires ripgrep
-map("n", "<Leader>gc", telescope.current_buffer_fuzzy_find)
+map("n", "<Leader>gb", telescope.current_buffer_fuzzy_find)
 
 map("n", "<C-s>", function() telescope.buffers { layout_strategy = "center" } end)
 map("n", "<Leader>b", function() telescope.buffers { layout_strategy = "center" } end)
@@ -202,30 +221,65 @@ vim.api.nvim_create_autocmd("LspAttach", {
   end,
 })
 
-add("nvim-treesitter/nvim-treesitter")
---- @diagnostic disable-next-line: missing-fields
-require("nvim-treesitter.configs").setup {
-  ensure_installed = {
-    "odin", "lua", "javascript", "c", "cpp", "vimdoc", "java", "comment", "query", "jsdoc", "dart",
-    "angular", "rust", "python", "javascript", "diff", "zig", "go", "bash", "xml", "typescript",
-    "css", "fish", "make", "tsx", "graphql", "prisma", "terraform", "yaml",
-  },
-  -- automatically install parsers when entering buffer
-  auto_install = true,
-  highlight = { enable = true },
-  indent = { enable = true },
+add({
+  source = "nvim-treesitter/nvim-treesitter",
+  -- NOTE: master (default for now) is not guaranteed to be compatible with nvim 0.12,
+  -- also the main branch is a total rewrite of the plugin and has a totally different api:
+  -- https://github.com/nvim-treesitter/nvim-treesitter/issues/4767
+  -- https://github.com/nvim-treesitter/nvim-treesitter/discussions/7901
+  checkout = "main",
+})
+
+local treesitter = require("nvim-treesitter")
+treesitter.setup()
+local ensure_installed = {
+  "odin", "lua", "javascript", "c", "cpp", "vimdoc", "java", "comment", "query", "jsdoc", "dart",
+  "angular", "rust", "python", "javascript", "diff", "zig", "go", "bash", "xml", "typescript",
+  "css", "fish", "make", "tsx", "graphql", "prisma", "terraform", "yaml", "qmljs", "gleam",
 }
+treesitter.install(ensure_installed)
+
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = "*",
+    callback = function(_)
+      -- syntax highlighting provided by neovim
+      -- we use a pcall to ingore errors "Parser could not be created for language <something>"
+      -- because the language is not built in (e.g. TelescopePrompt, minideps-*, fff_list)
+      local start_ok = pcall(vim.treesitter.start)
+      if start_ok then
+        -- vim.wo.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
+        -- vim.wo.foldmethod = 'expr'
+        -- indentation, provided by nvim-treesitter
+        -- vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+      end
+    end,
+})
+
+-- --- @diagnostic disable-next-line: missing-fields
+-- require("nvim-treesitter.configs").setup {
+--   ensure_installed = ensure_installed,
+--   -- automatically install parsers when entering buffer
+--   auto_install = true,
+--   highlight = { enable = true },
+--   indent = { enable = true },
+--   textobjects = { enable = true },
+-- }
 
 add("mason-org/mason.nvim")
 add("mason-org/mason-lspconfig.nvim")
 
 -- NOTE: dartls and nixd are gone from the registry for some reason
-local lsp_clients = { "pyright", "zls", "ts_ls", "bashls", "prismals", "jdtls" }
+local lsp_clients = { "pyright", "zls", "ts_ls", "bashls", "prismals", "jdtls", "qmlls" }
+-- FIXME: not correct due to the nix pkg manager creating these paths on non-nixos systems too
 local is_nixos = vim.fn.isdirectory("/nix/store")
 local is_windows = vim.fn.has("win32") and true or false
 
 local home = os.getenv("HOME")
 local user = os.getenv("USER")
+-- since lua 5.2 unpack is now table.unpack
+if not table.unpack then
+    table.unpack = unpack
+end
 -- filter out problematic lsp servers, which usually package themselves as a .so; assume the wrapped version
 -- is used instead on nixos
 if is_nixos == 0 then
@@ -262,6 +316,9 @@ local lsp_configs = {
       "-configuration", jdtls_folder .. (is_windows and "/config_win" or "/config_linux"),
       "-data", jdtls_folder .. "/workspace",
     },
+  },
+  qmlls = {
+    cmd = { "qmlls", "-E" },
   },
   nixd = {
     settings = {
@@ -302,10 +359,11 @@ require("mason-lspconfig").setup {
 add("https://github.com/neovim/nvim-lspconfig")
 add({
   source = "https://github.com/Saghen/blink.cmp",
-  checkout = "v1.7.0",
+  depends = { "saghen/blink.lib" },
+  -- checkout = "v1.7.0",
 })
 
-vim.lsp.enable({ "ols", "clangd", "pyright", "gh_actions_ls" })
+vim.lsp.enable({ "ols", "clangd", "pyright", "gh_actions_ls", "jsonls", "rust_analyzer", "gleam" })
 local blink_cmp = require("blink.cmp")
 for server, config in pairs(lsp_configs) do
   config.capabilities = blink_cmp.get_lsp_capabilities(config.capabilities)
