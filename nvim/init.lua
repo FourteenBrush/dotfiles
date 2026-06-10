@@ -65,45 +65,25 @@ opt.smartcase = true
 opt.undofile = true
 opt.splitbelow = true
 
---------------------
---- Setup mini.deps
---------------------
-
--- Clone "mini.nvim" manually in a way that it gets managed by "mini.deps"
-local path_package = vim.fn.stdpath("data") .. "/site/"
-local mini_path = path_package .. "pack/deps/start/mini.nvim"
---- @diagnostic disable-next-line: undefined-field
-if not vim.loop.fs_stat(mini_path) then
-  vim.cmd("echo 'Installing mini.nvim'")
-  local clone_cmd = {
-    "git", "clone", "--filter=blob:none",
-    "https://github.com/nvim-mini/mini.nvim", mini_path
-  }
-  vim.fn.system(clone_cmd)
-  vim.cmd.packadd("mini.nvim")
-  vim.cmd.helptags("ALL")
-  vim.cmd("echo 'Installed mini.nvim'")
-end
-
-require("mini.deps").setup {
-  path = { package = path_package },
+vim.pack.add {
+  "https://github.com/lewis6991/gitsigns.nvim",
+  "https://github.com/dmtrKovalenko/fff.nvim",
+  "https://github.com/nvim-mini/mini.nvim",
 }
 
-local add = MiniDeps.add
-
--- add({ source = "nvim-mini/mini.pairs", checkout = "stable" })
 require("mini.pairs").setup {}
 require("mini.icons").setup {}
 MiniIcons.tweak_lsp_kind()
 MiniIcons.mock_nvim_web_devicons()
 
-add("lewis6991/gitsigns.nvim")
 
-add({
-  source = "dmtrKovalenko/fff.nvim",
-  hooks = { post_install = function()
-    require("fff.download").download_or_build_binary()
-  end },
+vim.api.nvim_create_autocmd("PackChanged", {
+  callback = function (event)
+    local name, kind = event.data.spec.name, event.data.kind
+    if name == "fff.nvim" and kind == "update" then
+      require("fff.download").download_or_build_binary()
+    end
+  end
 })
 
 -- move from vertical to horizontal layout at >= x cols
@@ -121,11 +101,10 @@ require("fff").setup {
   },
 }
 
-add({
-  source = "nvim-telescope/telescope.nvim",
-  -- checkout = "0.1.8",
-  depends = { "nvim-lua/plenary.nvim" },
-})
+vim.pack.add {
+  "https://github.com/nvim-lua/plenary.nvim",
+  "https://github.com/nvim-telescope/telescope.nvim",
+}
 require("telescope").setup {
   defaults = {
     file_ignore_patterns = { "node_modules", ".git/" },
@@ -143,7 +122,7 @@ require("telescope").setup {
     },
   },
 }
-add("catgoose/nvim-colorizer.lua")
+vim.pack.add { "https://github.com/catgoose/nvim-colorizer.lua" }
 require("colorizer").setup {
   options = {
     parsers = { css = true },
@@ -159,7 +138,7 @@ require("colorizer").setup {
 --- Colorscheme
 --------------------
 
-add("scottmckendry/cyberdream.nvim")
+vim.pack.add { "https://github.com/scottmckendry/cyberdream.nvim" }
 local comp_menu_bg = "#212426"
 require("cyberdream").setup {
   saturation = 0.9,
@@ -221,21 +200,20 @@ vim.api.nvim_create_autocmd("LspAttach", {
   end,
 })
 
-add({
-  source = "nvim-treesitter/nvim-treesitter",
+vim.pack.add {
   -- NOTE: master (default for now) is not guaranteed to be compatible with nvim 0.12,
   -- also the main branch is a total rewrite of the plugin and has a totally different api:
   -- https://github.com/nvim-treesitter/nvim-treesitter/issues/4767
   -- https://github.com/nvim-treesitter/nvim-treesitter/discussions/7901
-  checkout = "main",
-})
+  { src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" }
+}
 
 local treesitter = require("nvim-treesitter")
 treesitter.setup()
 local ensure_installed = {
   "odin", "lua", "javascript", "c", "cpp", "vimdoc", "java", "comment", "query", "jsdoc", "dart",
   "angular", "rust", "python", "javascript", "diff", "zig", "go", "bash", "xml", "typescript",
-  "css", "fish", "make", "tsx", "graphql", "prisma", "terraform", "yaml", "qmljs", "gleam",
+  "css", "fish", "make", "tsx", "graphql", "prisma", "terraform", "yaml", "qmljs", "gleam", "hyprlang",
 }
 treesitter.install(ensure_installed)
 
@@ -265,9 +243,10 @@ vim.api.nvim_create_autocmd("FileType", {
 --   textobjects = { enable = true },
 -- }
 
-add("mason-org/mason.nvim")
-add("mason-org/mason-lspconfig.nvim")
-
+vim.pack.add {
+  "https://github.com/mason-org/mason.nvim",
+  "https://github.com/mason-org/mason-lspconfig.nvim",
+}
 -- NOTE: dartls and nixd are gone from the registry for some reason
 local lsp_clients = { "pyright", "zls", "ts_ls", "bashls", "prismals", "jdtls", "qmlls" }
 -- FIXME: not correct due to the nix pkg manager creating these paths on non-nixos systems too
@@ -356,15 +335,15 @@ require("mason-lspconfig").setup {
 }
 
 -- lspconfig only used as config repo, actual configuration happens through vim.lsp
-add("https://github.com/neovim/nvim-lspconfig")
-add({
-  source = "https://github.com/Saghen/blink.cmp",
-  depends = { "saghen/blink.lib" },
-  -- checkout = "v1.7.0",
-})
+vim.pack.add {
+  "https://github.com/neovim/nvim-lspconfig",
+  "https://github.com/Saghen/blink.lib",
+  "https://github.com/Saghen/blink.cmp",
+}
+local blink_cmp = require("blink.cmp")
+blink_cmp.download():pwait()
 
 vim.lsp.enable({ "ols", "clangd", "pyright", "gh_actions_ls", "jsonls", "rust_analyzer", "gleam" })
-local blink_cmp = require("blink.cmp")
 for server, config in pairs(lsp_configs) do
   config.capabilities = blink_cmp.get_lsp_capabilities(config.capabilities)
   vim.lsp.config(server, config)
@@ -372,7 +351,7 @@ for server, config in pairs(lsp_configs) do
 end
 
 require("mini.icons").setup {}
-require("blink.cmp").setup {
+blink_cmp.setup {
   fuzzy = { implementation = "prefer_rust_with_warning" },
   signature = { enabled = true },
   keymap = {
