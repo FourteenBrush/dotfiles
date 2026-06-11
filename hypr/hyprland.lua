@@ -17,7 +17,7 @@ hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 -- NOTE: no need for & disown
 hl.on("hyprland.start", function ()
   -- hl.exec_cmd("waybar")
-  hl.exec_cmd("gs -c noctalia-shell 2>&1 > ~/Software/quickshell/log.txt")
+  hl.exec_cmd("qs -c noctalia-shell 2>&1 > ~/Software/quickshell/log.txt")
   hl.exec_cmd("gsettings set org.gnome.desktop.interface cursor-theme phinger-cursors-light")
   hl.exec_cmd("systemctl --user start hyprpolkitagent")
 
