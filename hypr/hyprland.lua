@@ -3,10 +3,29 @@
 --------------------
 
 -- transform: 0 = normal, 1 = 90 degrees, 2 = 180 degrees, 3 = 270 degrees
+local transforms = { normal = 0, cw = 1, inverted = 2, ccw = 3 }
 
--- horizontal layout
-hl.monitor { output = "eDP-1", position = "2560x0", scale = 1 }
-hl.monitor { output = "DP-2", mode =  "2560x1440@180", position = "0x0", scale = 1 }
+-- CHANGE THIS TO CHANGE DP-2 ROTATION
+local dp2_orientation = "cw"
+local dp2_width = dp2_orientation == "normal" or dp2_orientation == "inverted"
+  and 2560
+  or 1440
+
+hl.monitor {
+  output = "DP-2",
+  -- NOTE: position is calculated from the scaled and transformed resolution, therefore
+  -- rotation is handled by transform, not by swapping dimensions in the mode string!
+  mode = "2560x1440@180",
+  position = "0x0",
+  scale = 1,
+  transform = transforms[dp2_orientation],
+}
+-- laptop screen, played to the right of DP-2
+hl.monitor {
+  output = "eDP-1",
+  position = ("%dx0"):format(dp2_width),
+  scale = 1,
+}
 
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 
@@ -17,7 +36,7 @@ hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 -- NOTE: no need for & disown
 hl.on("hyprland.start", function ()
   -- hl.exec_cmd("waybar")
-  hl.exec_cmd("qs -c noctalia-shell 2>&1 > ~/Software/quickshell/log.txt")
+  hl.exec_cmd("gs -c noctalia-shell 2>&1 > ~/Software/quickshell/log.txt")
   hl.exec_cmd("gsettings set org.gnome.desktop.interface cursor-theme phinger-cursors-light")
   hl.exec_cmd("systemctl --user start hyprpolkitagent")
 
@@ -288,7 +307,7 @@ hl.bind("SUPER + TAB", function ()
 
   hl.workspace_rule { workspace = workspace.name, layout = next_layout }
   -- https://wiki.hypr.land/Configuring/Advanced-and-Cool/Using-hyprctl/#notify
-  hl.notification.create { text = "Switched layout to " .. next_layout, timeout = 950, icon = "hint", color = "#A9D84C" }
+  hl.notification.create { text = "Switched layout to " .. next_layout, timeout = 1100, font_size = 18, icon = "hint", color = "#A9D84C" }
 end)
 
 --------------------
