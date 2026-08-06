@@ -23,6 +23,8 @@ set -Ux EDITOR nvim
 set -x MANPAGER "nvim +Man!"
 set -x ODIN_ROOT (odin root)
 
+set -x XDG_VIDEOS_DIR ~/Pictures/Videos
+
 set -l java_home /usr/lib64/jvm/java-25-openjdk-25/
 if test -d $java_home
   set -x JAVA_HOME $java_home
@@ -34,12 +36,36 @@ fish_add_path ~/.nix-profile/bin
 
 fish_vi_key_bindings
 zoxide init fish | source
-devbox completion fish | source
+# devbox completion fish | source
 
 alias b bluetoothctl
 alias p3 python3
 alias hyprpicker="hyprpicker | tail -1 | tr -d '\n' | wl-copy"
 alias bat "bat --theme TwoDark --no-paging"
+
+abbr sysu "systemctl --user"
+
+function picker
+  set file (fzf)
+  if test $status -eq 0
+    nvim "$file"
+  end
+end
+
+function p3eval
+    p3 -c "print($argv)"
+end
+
+function threads
+  set pid (pidof $argv[1])
+  if test $status -ne 0
+    echo "pidof $argv[1]: no pid found"
+  end
+  
+  for thread in /proc/$pid/task/*
+    bat $thread/comm
+  end
+end
 
 abbr zy "sudo zypper --no-refresh --non-interactive in"
 
