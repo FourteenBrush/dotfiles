@@ -2,8 +2,19 @@ if status is-interactive
     # Commands to run in interactive sessions can go here
 end
 
-if not set -q SSH_AUTH_SOCK or not test -e $SSH_AUTH_SOCK
-  eval (ssh-agent -c) > /dev/null
+# ensure only one ssh-agent gets started by using a fixed socket path and checking for its existence
+# an eval (ssh-agent -c) performs some setenv SSH_AUTH_SOCK=something call, which does not export
+# this variable to other shells, therefore we cannot rely on a test -e "$SSH_AUTH_SOCK" alone
+set -l ssh_agent_socket "$HOME/.ssh/agent.sock"
+
+if not test -S "$ssh_agent_socket"; or not SSH_AUTH_SOCK="$ssh_agent_socket" ssh-add -l >/dev/null 2>&1
+    rm -f "$ssh_agent_socket"
+    eval (ssh-agent -c -a "$ssh_agent_socket") >/dev/null
+end
+
+set -gx SSH_AUTH_SOCK "$ssh_agent_socket"
+
+if not ssh-add -l >/dev/null 2>&1
   ssh-add ~/.ssh/id_ed25519_git_personal_auth    2>/dev/null
   ssh-add ~/.ssh/id_ed25519_git_personal_signing 2>/dev/null
   ssh-add ~/.ssh/id_ed25519_git_college_auth     2>/dev/null
