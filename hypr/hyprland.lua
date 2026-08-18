@@ -36,12 +36,13 @@ hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 -- NOTE: no need for & disown
 hl.on("hyprland.start", function ()
   -- hl.exec_cmd("waybar")
-  hl.exec_cmd("gs -c noctalia-shell 2>&1 > ~/Software/quickshell/log.txt")
+  hl.exec_cmd("qs -c noctalia-shell 2>&1 > ~/Software/quickshell/log.txt")
+  hl.exec_cmd("vicinae server")
   hl.exec_cmd("gsettings set org.gnome.desktop.interface cursor-theme phinger-cursors-light")
   hl.exec_cmd("systemctl --user start hyprpolkitagent")
 
   hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme \"prefer-dark\"")
-  hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme \"Adwaita\"")
+  hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme \"Adwaita-dark\"")
   -- hl.exec_cmd("blueman-applet")
   hl.exec_cmd("netbird-ui")
 end)
@@ -124,6 +125,10 @@ hl.config {
     -- responding but glfw isnt't handling the xdg_wm_base::ping event correctly or something
     enable_anr_dialog = false,
   },
+
+  ecosystem = {
+    no_donation_nag = true,
+  },
 }
 
 --------------------
@@ -136,22 +141,22 @@ hl.curve("linear", { type = "bezier", points = { {0, 0}, {1, 1} } })
 hl.curve("almostLinear", { type = "bezier", points = { {0.5, 0.5}, {0.75, 1.0} } })
 hl.curve("quick", { type = "bezier", points = { {0.15, 0}, {0.1, 1} } })
 
-hl.animation({ leaf = "global",        enabled = true, speed = 10,   bezier = "default" })
-hl.animation({ leaf = "border",        enabled = true, speed = 5.39, bezier = "easeOutQuint" })
-hl.animation({ leaf = "windows",       enabled = true, speed = 4.79, bezier = "easeOutQuint" })
-hl.animation({ leaf = "windowsIn",     enabled = true, speed = 4.1,  bezier = "easeOutQuint", style = "popin 87%" })
-hl.animation({ leaf = "windowsOut",    enabled = true, speed = 1.49, bezier = "linear", style = "popin 87%" })
-hl.animation({ leaf = "fadeIn",        enabled = true, speed = 1.73, bezier = "almostLinear" })
-hl.animation({ leaf = "fadeOut",       enabled = true, speed = 1.46, bezier = "almostLinear" })
-hl.animation({ leaf = "fade",          enabled = true, speed = 3.03, bezier = "quick" })
-hl.animation({ leaf = "layers",        enabled = true, speed = 3.81, bezier = "easeOutQuint" })
-hl.animation({ leaf = "layersIn",      enabled = true, speed = 4,    bezier = "easeOutQuint", style = "fade" })
-hl.animation({ leaf = "layersOut",     enabled = true, speed = 1.5,  bezier = "linear", style = "fade" })
-hl.animation({ leaf = "fadeLayersIn",  enabled = true, speed = 1.79, bezier = "almostLinear" })
-hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 1.39, bezier = "almostLinear" })
-hl.animation({ leaf = "workspaces",    enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
-hl.animation({ leaf = "workspacesIn",  enabled = true, speed = 1.21, bezier = "almostLinear", style = "fade" })
-hl.animation({ leaf = "workspacesOut", enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
+hl.animation { leaf = "global",        enabled = true, speed = 10,   bezier = "default" }
+hl.animation { leaf = "border",        enabled = true, speed = 5.39, bezier = "easeOutQuint" }
+hl.animation { leaf = "windows",       enabled = true, speed = 4.79, bezier = "easeOutQuint" }
+hl.animation { leaf = "windowsIn",     enabled = true, speed = 4.1,  bezier = "easeOutQuint", style = "popin 87%" }
+hl.animation { leaf = "windowsOut",    enabled = true, speed = 1.49, bezier = "linear", style = "popin 87%" }
+hl.animation { leaf = "fadeIn",        enabled = true, speed = 1.73, bezier = "almostLinear" }
+hl.animation { leaf = "fadeOut",       enabled = true, speed = 1.46, bezier = "almostLinear" }
+hl.animation { leaf = "fade",          enabled = true, speed = 3.03, bezier = "quick" }
+hl.animation { leaf = "layers",        enabled = true, speed = 3.81, bezier = "easeOutQuint" }
+hl.animation { leaf = "layersIn",      enabled = true, speed = 4,    bezier = "easeOutQuint", style = "fade" }
+hl.animation { leaf = "layersOut",     enabled = true, speed = 1.5,  bezier = "linear", style = "fade" }
+hl.animation { leaf = "fadeLayersIn",  enabled = true, speed = 1.79, bezier = "almostLinear" }
+hl.animation { leaf = "fadeLayersOut", enabled = true, speed = 1.39, bezier = "almostLinear" }
+hl.animation { leaf = "workspaces",    enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" }
+hl.animation { leaf = "workspacesIn",  enabled = true, speed = 1.21, bezier = "almostLinear", style = "fade" }
+hl.animation { leaf = "workspacesOut", enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" }
 
 --------------------
 -- WORKSPACE/WINDOW RULES
@@ -201,11 +206,13 @@ hl.window_rule {
 --------------------
 
 hl.bind("SUPER + RETURN", hl.dsp.exec_cmd("kitty"))
-hl.bind("ALT + SPACE", hl.dsp.exec_cmd("rofi -show drun"))
+-- hl.bind("ALT + SPACE", hl.dsp.exec_cmd("rofi -show drun"))
+hl.bind("ALT + SPACE", hl.dsp.exec_cmd("vicinae open"))
 hl.bind("SUPER + E", hl.dsp.exec_cmd("nautilus"))
 hl.bind("SUPER + ALT + L", hl.dsp.exec_cmd("hyprlock"))
 -- hyprshot freeze requires hyprpicker
-hl.bind("SUPER + S", hl.dsp.exec_cmd("hyprshot -m region --clipboard-only -t 2000 --freeze"))
+-- NOTE: ignore_mods=true does not work, as it also ignores the mod keys in the keybind itself
+hl.bind("SUPER + S", hl.dsp.exec_cmd("hyprshot -m region --clipboard-only -t 1000 --freeze"), {  })
 
 hl.bind("SUPER + W", hl.dsp.window.close())
 hl.bind("SUPER + SHIFT + W", hl.dsp.window.kill()) -- sends SIGKILL
@@ -292,34 +299,34 @@ for _, bind in ipairs(multimedia_logitech) do
 end
 
 -- cycle layouts
-hl.bind("SUPER + TAB", function ()
-  local layouts = { "dwindle", "master" }
-  local workspace = hl.get_active_workspace()
-  if not workspace then return end
+-- hl.bind("SUPER + TAB", function ()
+--   local layouts = { "dwindle", "master" }
+--   local workspace = hl.get_active_workspace()
+--   if not workspace then return end
+--
+--   local next_layout = "dwindle"
+--   for i = 1, #layouts do
+--     if layouts[i] == workspace.tiled_layout then
+--       next_layout = layouts[(i % #layouts) + 1]
+--       break
+--     end
+--   end
+--
+--   hl.workspace_rule { workspace = workspace.name, layout = next_layout }
+--   -- https://wiki.hypr.land/Configuring/Advanced-and-Cool/Using-hyprctl/#notify
+--   hl.notification.create { text = "Switched layout to " .. next_layout, timeout = 1100, font_size = 18, icon = "hint", color = "#A9D84C" }
+-- end)
 
-  local next_layout = "dwindle"
-  for i = 1, #layouts do
-    if layouts[i] == workspace.tiled_layout then
-      next_layout = layouts[(i % #layouts) + 1]
-      break
-    end
-  end
-
-  hl.workspace_rule { workspace = workspace.name, layout = next_layout }
-  -- https://wiki.hypr.land/Configuring/Advanced-and-Cool/Using-hyprctl/#notify
-  hl.notification.create { text = "Switched layout to " .. next_layout, timeout = 1100, font_size = 18, icon = "hint", color = "#A9D84C" }
-end)
+hl.bind("SUPER + TAB", hl.dsp.exec_cmd("~/Software/cycle_layouts.sh"))
 
 --------------------
 -- GESTURES
 --------------------
 
-hl.config {
-  gestures = {
-    workspace_swipe_touch = true,
-  },
-}
 hl.gesture { fingers = 3, direction = "horizontal", action = "workspace" }
+hl.gesture { fingers = 2, direction = "pinchout", action = "special" }
+-- hl.workspace_rule { workspace = "special:magic", no_rounding = true }
+hl.window_rule { match = { workspace = "special:magic" }, rounding = 0, border_color = { colors = { "#A33C2C", "#B5593E", angle = 0 } } }
 
 hl.config {
   input = {
