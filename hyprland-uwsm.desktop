@@ -1,0 +1,8 @@
+# Place at /usr/share/wayland-sessions/
+[Desktop Entry]
+Name=Hyprland (UWSM-managed)
+Comment=Hyprland managed by UWSM
+Exec=uwsm start -F -- /usr/bin/start-hyprland
+Type=Application
+DesktopNames=Hyprland
+Keywords=tiling;wayland;compositor;
